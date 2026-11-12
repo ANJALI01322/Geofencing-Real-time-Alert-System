@@ -26,7 +26,7 @@ function StatusDot({ active }) {
 
 export default function Vehicles() {
   const [vehicles, setVehicles] = useState([]);
-  const [form, setForm] = useState({ vehicle_number: "", vehicle_type: "truck", driver_name: "", driver_phone: "" });
+  const [form, setForm] = useState({ vehicle_number: "", vehicle_type: "truck", driver_name: "", phone_number: "" });
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [simVehicle, setSimVehicle] = useState("");
@@ -45,7 +45,7 @@ export default function Vehicles() {
     try {
       await vehicleAPI.create(form);
       toast.success(`Vehicle ${form.vehicle_number} registered`);
-      setForm({ vehicle_number: "", vehicle_type: "truck", driver_name: "", driver_phone: "" });
+      setForm({ vehicle_number: "", vehicle_type: "truck", driver_name: "", phone_number: "" });
       setShowForm(false);
       load();
     } catch { toast.error("Registration failed"); }
@@ -116,7 +116,7 @@ export default function Vehicles() {
             <div>
               <label className="form-label">Driver Phone</label>
               <input className="form-input" placeholder="+91 XXXXX XXXXX"
-                value={form.driver_phone} onChange={e => setForm(f => ({ ...f, driver_phone: e.target.value }))} />
+                value={form.driver_phone} onChange={e => setForm(f => ({ ...f, phone_number: e.target.value }))} />
             </div>
             <div style={{ gridColumn: "1/-1", display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button type="button" className="btn-ghost" onClick={() => setShowForm(false)}>Cancel</button>

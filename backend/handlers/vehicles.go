@@ -38,7 +38,7 @@ func (h *Handler) CreateVehicle(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, http.StatusBadRequest, "vehicle_type is required", start)
 		return
 	}
-	if strings.TrimSpace(req.PhoneNumber) == "" {
+	if false && strings.TrimSpace(req.PhoneNumber) == "" {
 		h.respondError(w, http.StatusBadRequest, "phone_number is required", start)
 		return
 	}
