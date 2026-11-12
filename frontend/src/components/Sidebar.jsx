@@ -1,94 +1,147 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import {
-  LayoutDashboard, Truck, MapPin, Radio,
-  Bell, AlertTriangle, Settings, Shield, Wifi, WifiOff
+  LayoutDashboard, Truck, Hexagon, Radio,
+  SlidersHorizontal, AlertOctagon, Wifi, WifiOff, Satellite
 } from "lucide-react";
 
 const NAV = [
-  { to: "/dashboard",     icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/vehicles",      icon: Truck,           label: "Vehicles" },
-  { to: "/geofences",     icon: MapPin,          label: "Geofences" },
-  { to: "/live-tracking", icon: Radio,           label: "Live Tracking" },
-  { to: "/alert-config",  icon: Settings,        label: "Alert Config" },
-  { to: "/violations",    icon: AlertTriangle,   label: "Violations" },
+  { to: "/dashboard",     icon: LayoutDashboard,    label: "Dashboard",     shortcut: "D" },
+  { to: "/vehicles",      icon: Truck,              label: "Fleet",         shortcut: "F" },
+  { to: "/geofences",     icon: Hexagon,            label: "Geofences",     shortcut: "G" },
+  { to: "/live-tracking", icon: Radio,              label: "Live Tracking", shortcut: "L" },
+  { to: "/alert-config",  icon: SlidersHorizontal,  label: "Alert Rules",   shortcut: "A" },
+  { to: "/violations",    icon: AlertOctagon,       label: "Violations",    shortcut: "V" },
 ];
 
 export default function Sidebar({ connected }) {
   return (
     <aside style={{
-      width: 240,
-      minWidth: 240,
-      background: "linear-gradient(180deg, #0d1117 0%, #0a0f1e 100%)",
-      borderRight: "1px solid rgba(255,255,255,0.06)",
+      width: 220,
+      minWidth: 220,
+      background: "var(--bg-base)",
+      borderRight: "1px solid var(--border)",
       display: "flex",
       flexDirection: "column",
-      padding: "0",
       position: "relative",
-      zIndex: 10
+      zIndex: 10,
     }}>
       {/* Logo */}
-      <div style={{ padding: "24px 20px 20px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+      <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+            width: 32, height: 32,
+            background: "var(--blue)",
+            borderRadius: 6,
             display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 4px 14px rgba(99,102,241,0.4)"
+            boxShadow: "0 0 16px rgba(14,165,233,0.4)",
+            flexShrink: 0,
           }}>
-            <Shield size={18} color="white" />
+            <Satellite size={16} color="#fff" />
           </div>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 16, color: "#f1f5f9", letterSpacing: "-0.02em" }}>GeoTrack</div>
-            <div style={{ fontSize: 10, color: "#475569", fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase" }}>Fleet Management</div>
+            <div style={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontWeight: 700,
+              fontSize: 15,
+              color: "var(--text-1)",
+              letterSpacing: "-0.02em",
+              lineHeight: 1.2,
+            }}>GeoTrack</div>
+            <div style={{
+              fontSize: 9,
+              color: "var(--blue)",
+              fontFamily: "'JetBrains Mono', monospace",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+            }}>Fleet · v1.0</div>
           </div>
         </div>
-        <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(99,102,241,0.3), transparent)", margin: "16px 0 0" }} />
       </div>
 
-      {/* Nav */}
-      <nav style={{ padding: "0 12px", flex: 1 }}>
-        <div style={{ fontSize: "0.65rem", fontWeight: 600, color: "#334155", textTransform: "uppercase", letterSpacing: "0.1em", padding: "0 4px 8px" }}>
+      {/* Nav section */}
+      <div style={{ padding: "12px 10px", flex: 1 }}>
+        <div style={{
+          fontSize: "0.6rem",
+          fontFamily: "'Space Grotesk', sans-serif",
+          fontWeight: 700,
+          color: "var(--text-3)",
+          textTransform: "uppercase",
+          letterSpacing: "0.12em",
+          padding: "0 6px 8px",
+        }}>
           Navigation
         </div>
         {NAV.map(({ to, icon: Icon, label }) => (
-          <NavLink key={to} to={to} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
-            style={{ marginBottom: 2 }}>
-            <Icon size={16} />
-            <span>{label}</span>
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
+          >
+            <Icon size={15} strokeWidth={1.8} />
+            <span style={{ flex: 1 }}>{label}</span>
           </NavLink>
         ))}
-      </nav>
+      </div>
 
-      {/* Connection status */}
-      <div style={{ padding: "16px 20px 24px" }}>
-        <div style={{ height: 1, background: "rgba(255,255,255,0.05)", marginBottom: 16 }} />
+      {/* Footer */}
+      <div style={{ padding: "12px 10px 16px", borderTop: "1px solid var(--border)" }}>
+        {/* WebSocket status */}
         <div style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "10px 14px", borderRadius: 10,
-          background: connected ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.08)",
-          border: `1px solid ${connected ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)"}`,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "8px 10px",
+          borderRadius: 6,
+          background: connected ? "rgba(34,197,94,0.06)" : "rgba(239,68,68,0.06)",
+          border: `1px solid ${connected ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)"}`,
         }}>
-          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+          <div className="dot-wrap" style={{ width: 8, height: 8, flexShrink: 0 }}>
             {connected && (
-              <div style={{
-                position: "absolute", width: 10, height: 10, borderRadius: "50%",
-                background: "#10b981", opacity: 0.4,
-              }} className="ping-slow" />
+              <div className="live-ring" style={{ background: "var(--green)" }} />
             )}
             <div style={{
-              width: 8, height: 8, borderRadius: "50%",
-              background: connected ? "#10b981" : "#ef4444",
-            }} className={connected ? "live-dot" : ""} />
+              width: 8, height: 8,
+              borderRadius: "50%",
+              background: connected ? "var(--green)" : "var(--red)",
+              position: "relative", zIndex: 1,
+            }} className={connected ? "blink" : ""} />
           </div>
-          <div>
-            <div style={{ fontSize: "0.75rem", fontWeight: 600, color: connected ? "#34d399" : "#f87171" }}>
-              {connected ? "WebSocket Live" : "Connecting..."}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontSize: "0.7rem",
+              fontWeight: 600,
+              color: connected ? "var(--green)" : "var(--red)",
+              fontFamily: "'JetBrains Mono', monospace",
+              lineHeight: 1.2,
+            }}>
+              {connected ? "WS LIVE" : "OFFLINE"}
             </div>
-            <div style={{ fontSize: "0.65rem", color: "#475569" }}>
-              {connected ? "Real-time alerts active" : "Retrying connection"}
+            <div style={{ fontSize: "0.6rem", color: "var(--text-3)" }}>
+              {connected ? "Real-time active" : "Reconnecting…"}
             </div>
           </div>
-          {connected ? <Wifi size={14} color="#34d399" style={{ marginLeft: "auto" }} /> : <WifiOff size={14} color="#f87171" style={{ marginLeft: "auto" }} />}
+          {connected
+            ? <Wifi size={12} color="var(--green)" />
+            : <WifiOff size={12} color="var(--red)" />}
+        </div>
+
+        {/* System tag */}
+        <div style={{
+          marginTop: 8,
+          padding: "5px 10px",
+          borderRadius: 5,
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}>
+          <span style={{ fontSize: "0.6rem", color: "var(--text-3)", fontFamily: "JetBrains Mono" }}>
+            SYS
+          </span>
+          <span style={{ fontSize: "0.6rem", color: "var(--text-3)", fontFamily: "JetBrains Mono" }}>
+            {new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+          </span>
         </div>
       </div>
     </aside>

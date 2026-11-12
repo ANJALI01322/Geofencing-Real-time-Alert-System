@@ -1,18 +1,42 @@
 import { useEffect, useState } from "react";
-import { vehicleAPI } from "../api";
+import { vehicleAPI, locationAPI } from "../api";
 import toast from "react-hot-toast";
-import { Plus, Truck, User, Phone, Tag, X, ChevronRight } from "lucide-react";
+import { Plus, X, Truck, User, Phone, MapPin, Circle, ChevronRight, Navigation } from "lucide-react";
 
 const TYPES = ["truck", "van", "bike", "car", "bus"];
-const TYPE_COLORS = { truck:"badge-indigo", van:"badge-cyan", bike:"badge-green", car:"badge-amber", bus:"badge-purple" };
+const TYPE_COLOR = { truck:"badge-blue", van:"badge-cyan", bike:"badge-green", car:"badge-amber", bus:"badge-indigo" };
+
+function StatusDot({ active }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div className="dot-wrap" style={{ width: 8, height: 8 }}>
+        {active && <div className="live-ring" style={{ background: "var(--green)" }} />}
+        <div style={{
+          width: 8, height: 8, borderRadius: "50%",
+          background: active ? "var(--green)" : "var(--text-3)",
+          position: "relative", zIndex: 1,
+        }} className={active ? "blink" : ""} />
+      </div>
+      <span style={{ fontSize: "0.72rem", color: active ? "var(--green)" : "var(--text-3)", fontFamily: "JetBrains Mono", fontWeight: 600 }}>
+        {active ? "ONLINE" : "OFFLINE"}
+      </span>
+    </div>
+  );
+}
 
 export default function Vehicles() {
   const [vehicles, setVehicles] = useState([]);
   const [form, setForm] = useState({ vehicle_number: "", vehicle_type: "truck", driver_name: "", driver_phone: "" });
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [simVehicle, setSimVehicle] = useState("");
+  const [simulating, setSimulating] = useState(false);
 
-  const load = () => vehicleAPI.list().then(r => { const d = r.data?.data ?? r.data; setVehicles(Array.isArray(d) ? d : []); });
+  const load = () => vehicleAPI.list().then(r => {
+    const d = r.data?.data ?? r.data;
+    setVehicles(Array.isArray(d) ? d : []);
+  });
+
   useEffect(() => { load(); }, []);
 
   const submit = async e => {
@@ -20,7 +44,7 @@ export default function Vehicles() {
     setLoading(true);
     try {
       await vehicleAPI.create(form);
-      toast.success("Vehicle registered!");
+      toast.success(`Vehicle ${form.vehicle_number} registered`);
       setForm({ vehicle_number: "", vehicle_type: "truck", driver_name: "", driver_phone: "" });
       setShowForm(false);
       load();
@@ -28,31 +52,55 @@ export default function Vehicles() {
     finally { setLoading(false); }
   };
 
+  const simulate = async () => {
+    if (!simVehicle) return toast.error("Select a vehicle first");
+    setSimulating(true);
+    const base = { lat: 28.6139, lng: 77.2090 };
+    const steps = 8;
+    for (let i = 0; i < steps; i++) {
+      const lat = base.lat + (Math.random() - 0.5) * 0.05;
+      const lng = base.lng + (Math.random() - 0.5) * 0.05;
+      try {
+        await locationAPI.update({ vehicle_id: simVehicle, latitude: lat, longitude: lng });
+      } catch {}
+      await new Promise(r => setTimeout(r, 600));
+    }
+    toast.success("Location simulation complete");
+    setSimulating(false);
+    load();
+  };
+
   return (
-    <div style={{ padding: "32px 36px", minHeight: "100vh", background: "#0a0f1e" }}>
-      <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+    <div className="page-wrap content-scroll">
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
-            <div style={{ width: 4, height: 28, borderRadius: 4, background: "linear-gradient(180deg, #06b6d4, #0891b2)" }} />
-            <h1 className="page-title">Fleet Vehicles</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <div style={{ width: 3, height: 24, background: "var(--blue)", borderRadius: 2, boxShadow: "0 0 8px var(--blue)" }} />
+            <h1 className="page-heading">Fleet Registry</h1>
           </div>
-          <p className="page-subtitle">{vehicles.length} vehicle{vehicles.length !== 1 ? "s" : ""} registered in fleet</p>
+          <p className="page-sub">{vehicles.length} vehicle{vehicles.length !== 1 ? "s" : ""} · {vehicles.filter(v => v.last_location).length} active</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowForm(s => !s)}>
-          {showForm ? <X size={16} /> : <Plus size={16} />}
-          {showForm ? "Cancel" : "Register Vehicle"}
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn-ghost" onClick={() => setShowForm(s => !s)}>
+            {showForm ? <X size={14} /> : <Plus size={14} />}
+            {showForm ? "Cancel" : "Add Vehicle"}
+          </button>
+        </div>
       </div>
 
-      {/* Form */}
+      {/* Add form */}
       {showForm && (
-        <div className="glass card-glow-indigo" style={{ padding: 28, marginBottom: 24 }}>
-          <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: "#e2e8f0", marginBottom: 20 }}>New Vehicle Registration</h3>
-          <form onSubmit={submit} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div className="panel" style={{ marginBottom: 20 }}>
+          <div className="panel-header">
+            <span className="panel-title">Register New Vehicle</span>
+          </div>
+          <form onSubmit={submit} style={{ padding: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <div>
-              <label className="form-label">Vehicle Number *</label>
+              <label className="form-label">Plate Number *</label>
               <input className="form-input" placeholder="e.g. DL01AB1234" required
-                value={form.vehicle_number} onChange={e => setForm(f => ({ ...f, vehicle_number: e.target.value.toUpperCase() }))} />
+                value={form.vehicle_number}
+                onChange={e => setForm(f => ({ ...f, vehicle_number: e.target.value.toUpperCase() }))} />
             </div>
             <div>
               <label className="form-label">Vehicle Type *</label>
@@ -62,44 +110,74 @@ export default function Vehicles() {
             </div>
             <div>
               <label className="form-label">Driver Name</label>
-              <input className="form-input" placeholder="Full name" value={form.driver_name} onChange={e => setForm(f => ({ ...f, driver_name: e.target.value }))} />
+              <input className="form-input" placeholder="Full name"
+                value={form.driver_name} onChange={e => setForm(f => ({ ...f, driver_name: e.target.value }))} />
             </div>
             <div>
               <label className="form-label">Driver Phone</label>
-              <input className="form-input" placeholder="+91 XXXXX XXXXX" value={form.driver_phone} onChange={e => setForm(f => ({ ...f, driver_phone: e.target.value }))} />
+              <input className="form-input" placeholder="+91 XXXXX XXXXX"
+                value={form.driver_phone} onChange={e => setForm(f => ({ ...f, driver_phone: e.target.value }))} />
             </div>
-            <div style={{ gridColumn: "1/-1", display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
+            <div style={{ gridColumn: "1/-1", display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button type="button" className="btn-ghost" onClick={() => setShowForm(false)}>Cancel</button>
               <button type="submit" className="btn-primary" disabled={loading}>
-                {loading ? "Registering..." : "Register Vehicle"}
-                {!loading && <ChevronRight size={16} />}
+                {loading ? "Registering…" : <>Register <ChevronRight size={14} /></>}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Table */}
-      <div className="glass" style={{ overflow: "hidden" }}>
-        <div style={{ padding: "16px 24px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", gap: 8 }}>
-          <Truck size={16} color="#6366f1" />
-          <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "#94a3b8" }}>Registered Fleet</span>
+      {/* Simulate panel */}
+      {vehicles.length > 0 && (
+        <div className="panel" style={{ marginBottom: 20 }}>
+          <div className="panel-header">
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Navigation size={14} color="var(--amber)" />
+              <span className="panel-title">GPS Simulation</span>
+            </div>
+            <span className="badge badge-amber">Dev Tool</span>
+          </div>
+          <div style={{ padding: "14px 20px", display: "flex", gap: 10, alignItems: "center" }}>
+            <select className="form-input" style={{ maxWidth: 220 }} value={simVehicle} onChange={e => setSimVehicle(e.target.value)}>
+              <option value="">Select vehicle…</option>
+              {vehicles.map(v => <option key={v.id} value={v.id}>{v.vehicle_number}</option>)}
+            </select>
+            <button className="btn-ghost" onClick={simulate} disabled={simulating || !simVehicle}>
+              {simulating ? "Simulating…" : <><Navigation size={13} /> Simulate Route</>}
+            </button>
+            <span style={{ fontSize: "0.72rem", color: "var(--text-3)" }}>
+              8 random GPS points around New Delhi
+            </span>
+          </div>
         </div>
+      )}
+
+      {/* Table */}
+      <div className="panel" style={{ overflow: "hidden" }}>
+        <div className="panel-header">
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Truck size={14} color="var(--blue)" />
+            <span className="panel-title">Fleet Registry</span>
+          </div>
+          <span className="badge badge-blue">{vehicles.length} total</span>
+        </div>
+
         {vehicles.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 0" }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🚛</div>
-            <div style={{ color: "#334155", fontWeight: 600, fontSize: "0.9rem" }}>No vehicles registered yet</div>
-            <div style={{ color: "#1e293b", fontSize: "0.8rem", marginTop: 4 }}>Click "Register Vehicle" to add your first fleet vehicle</div>
+            <Truck size={36} color="var(--text-3)" style={{ margin: "0 auto 12px" }} />
+            <div style={{ fontSize: "0.85rem", color: "var(--text-3)" }}>No vehicles registered</div>
+            <div style={{ fontSize: "0.75rem", color: "var(--text-3)", marginTop: 4, opacity: 0.6 }}>Add your first fleet vehicle above</div>
           </div>
         ) : (
           <table className="data-table">
             <thead>
               <tr>
-                <th>Vehicle</th>
+                <th>Plate / ID</th>
                 <th>Type</th>
                 <th>Driver</th>
-                <th>Phone</th>
-                <th>Last Location</th>
+                <th>Contact</th>
+                <th>Coordinates</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -109,36 +187,58 @@ export default function Vehicles() {
                   <td>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <div style={{
-                        width: 34, height: 34, borderRadius: 10,
-                        background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)",
-                        display: "flex", alignItems: "center", justifyContent: "center"
+                        width: 32, height: 32, borderRadius: 6,
+                        background: "rgba(14,165,233,0.08)",
+                        border: "1px solid rgba(14,165,233,0.15)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        flexShrink: 0,
                       }}>
-                        <Truck size={16} color="#818cf8" />
+                        <Truck size={14} color="var(--blue)" />
                       </div>
-                      <span style={{ fontWeight: 600, color: "#e2e8f0" }}>{v.vehicle_number}</span>
+                      <div>
+                        <div style={{ fontWeight: 700, color: "var(--text-1)", fontSize: "0.85rem", fontFamily: "Space Grotesk" }}>
+                          {v.vehicle_number}
+                        </div>
+                        <div className="mono text-muted" style={{ fontSize: "0.62rem" }}>
+                          {v.id?.slice(0, 8)}…
+                        </div>
+                      </div>
                     </div>
                   </td>
-                  <td><span className={`badge ${TYPE_COLORS[v.vehicle_type] || "badge-indigo"}`}>{v.vehicle_type}</span></td>
                   <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <User size={13} color="#475569" />
-                      <span>{v.driver_name || <span style={{ color: "#334155" }}>—</span>}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <Phone size={13} color="#475569" />
-                      <span>{v.driver_phone || <span style={{ color: "#334155" }}>—</span>}</span>
-                    </div>
-                  </td>
-                  <td style={{ fontFamily: "monospace", fontSize: "0.8rem", color: "#64748b" }}>
-                    {v.last_location ? `${v.last_location.latitude?.toFixed(4)}, ${v.last_location.longitude?.toFixed(4)}` : <span style={{ color: "#1e293b" }}>Not tracked</span>}
-                  </td>
-                  <td>
-                    <span className={v.last_location ? "badge badge-green" : "badge badge-red"}>
-                      {v.last_location ? "● Active" : "○ Idle"}
+                    <span className={`badge ${TYPE_COLOR[v.vehicle_type] || "badge-slate"}`}>
+                      {v.vehicle_type}
                     </span>
                   </td>
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <User size={12} color="var(--text-3)" />
+                      <span style={{ color: v.driver_name ? "var(--text-2)" : "var(--text-3)" }}>
+                        {v.driver_name || "—"}
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <Phone size={12} color="var(--text-3)" />
+                      <span className="mono" style={{ fontSize: "0.78rem", color: v.driver_phone ? "var(--text-2)" : "var(--text-3)" }}>
+                        {v.driver_phone || "—"}
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    {v.last_location ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <MapPin size={11} color="var(--blue)" />
+                        <span className="mono" style={{ fontSize: "0.75rem", color: "var(--text-2)" }}>
+                          {v.last_location.latitude?.toFixed(5)}, {v.last_location.longitude?.toFixed(5)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="mono text-muted" style={{ fontSize: "0.75rem" }}>No data</span>
+                    )}
+                  </td>
+                  <td><StatusDot active={!!v.last_location} /></td>
                 </tr>
               ))}
             </tbody>

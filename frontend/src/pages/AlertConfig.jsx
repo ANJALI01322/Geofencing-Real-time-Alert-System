@@ -1,127 +1,162 @@
 import { useEffect, useState } from "react";
-import { vehicleAPI, geofenceAPI, alertAPI as alertConfigAPI } from "../api";
+import { vehicleAPI, geofenceAPI, alertAPI } from "../api";
 import toast from "react-hot-toast";
-import { Plus, Bell, Settings, ChevronRight, X } from "lucide-react";
+import { Plus, X, SlidersHorizontal, Trash2, Bell, ChevronRight, Zap } from "lucide-react";
 
-const EVENT_BADGE = { entry: "badge-green", exit: "badge-red", both: "badge-purple" };
+const EVENT_OPTIONS = [
+  { value: "entry", label: "Zone Entry" },
+  { value: "exit",  label: "Zone Exit" },
+  { value: "both",  label: "Entry & Exit" },
+];
 
 export default function AlertConfig() {
-  const [vehicles, setVehicles] = useState([]);
+  const [vehicles,  setVehicles]  = useState([]);
   const [geofences, setGeofences] = useState([]);
-  const [rules, setRules] = useState([]);
-  const [form, setForm] = useState({ vehicle_id: "", geofence_id: "", event_type: "both" });
-  const [showForm, setShowForm] = useState(false);
+  const [rules,     setRules]     = useState([]);
+  const [form, setForm] = useState({ vehicle_id: "", geofence_id: "", alert_type: "both", speed_limit: "" });
   const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
-  const load = () => {
-    vehicleAPI.list().then(r => { const d = r.data?.data ?? r.data; setVehicles(Array.isArray(d) ? d : []); });
+  useEffect(() => {
+    vehicleAPI.list().then(r  => { const d = r.data?.data ?? r.data; setVehicles(Array.isArray(d) ? d : []); });
     geofenceAPI.list().then(r => { const d = r.data?.data ?? r.data; setGeofences(Array.isArray(d) ? d : []); });
-    alertConfigAPI.list().then(r => { const d = r.data?.data ?? r.data; setRules(Array.isArray(d) ? d : []); });
-  };
-  useEffect(() => { load(); }, []);
+    alertAPI.list().then(r    => { const d = r.data?.data ?? r.data; setRules(Array.isArray(d) ? d : []); });
+  }, []);
 
-  const submit = async e => {
+  const save = async e => {
     e.preventDefault();
+    if (!form.vehicle_id || !form.geofence_id) return toast.error("Select vehicle and zone");
     setLoading(true);
     try {
-      const payload = { geofence_id: form.geofence_id, event_type: form.event_type };
-      if (form.vehicle_id) payload.vehicle_id = form.vehicle_id;
-      await alertConfigAPI.create(payload);
-      toast.success("Alert rule configured!");
-      setForm({ vehicle_id: "", geofence_id: "", event_type: "both" });
+      const payload = { ...form };
+      if (form.speed_limit) payload.speed_limit = parseFloat(form.speed_limit);
+      else delete payload.speed_limit;
+      await alertAPI.configure(payload);
+      toast.success("Alert rule saved");
+      setForm({ vehicle_id: "", geofence_id: "", alert_type: "both", speed_limit: "" });
       setShowForm(false);
-      load();
-    } catch { toast.error("Failed to create rule"); }
+      alertAPI.list().then(r => { const d = r.data?.data ?? r.data; setRules(Array.isArray(d) ? d : []); });
+    } catch { toast.error("Failed to save rule"); }
     finally { setLoading(false); }
   };
 
-  const getGeofenceName = id => geofences.find(g => g.id === id)?.name || id;
-  const getVehicleName = id => vehicles.find(v => v.id === id)?.vehicle_number || "All Vehicles";
+  const getLabel = (arr, id, field = "name") => arr.find(x => x.id === id)?.[field] || id?.slice(0,8) || "—";
 
   return (
-    <div style={{ padding: "32px 36px", minHeight: "100vh", background: "#0a0f1e" }}>
-      <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+    <div className="page-wrap content-scroll">
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
-            <div style={{ width: 4, height: 28, borderRadius: 4, background: "linear-gradient(180deg, #f59e0b, #d97706)" }} />
-            <h1 className="page-title">Alert Configuration</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <div style={{ width: 3, height: 24, background: "var(--amber)", borderRadius: 2, boxShadow: "0 0 8px var(--amber)" }} />
+            <h1 className="page-heading">Alert Rules</h1>
           </div>
-          <p className="page-subtitle">Define geofence entry/exit rules per vehicle or fleet-wide</p>
+          <p className="page-sub">{rules.length} rule{rules.length !== 1 ? "s" : ""} configured · geofence trigger policies</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowForm(s => !s)}>
-          {showForm ? <X size={16} /> : <Plus size={16} />}
+        <button className="btn-ghost" onClick={() => setShowForm(s => !s)}>
+          {showForm ? <X size={14} /> : <Plus size={14} />}
           {showForm ? "Cancel" : "New Rule"}
         </button>
       </div>
 
+      {/* Form */}
       {showForm && (
-        <div className="glass card-glow-indigo" style={{ padding: 28, marginBottom: 24 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Bell size={16} color="white" />
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, color: "#e2e8f0" }}>Create Alert Rule</div>
-              <div style={{ fontSize: "0.75rem", color: "#475569" }}>Configure when to fire an alert</div>
+        <div className="panel" style={{ marginBottom: 20 }}>
+          <div className="panel-header">
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Zap size={13} color="var(--amber)" />
+              <span className="panel-title">Configure Alert Rule</span>
             </div>
           </div>
-          <form onSubmit={submit} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-            <div>
-              <label className="form-label">Geofence *</label>
-              <select className="form-input" required value={form.geofence_id} onChange={e => setForm(f => ({ ...f, geofence_id: e.target.value }))}>
-                <option value="">Select zone...</option>
-                {geofences.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-              </select>
+          <form onSubmit={save} style={{ padding: "18px 20px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+              <div>
+                <label className="form-label">Vehicle *</label>
+                <select className="form-input" value={form.vehicle_id} onChange={e => setForm(f => ({ ...f, vehicle_id: e.target.value }))} required>
+                  <option value="">Select vehicle…</option>
+                  {vehicles.map(v => <option key={v.id} value={v.id}>{v.vehicle_number}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="form-label">Geofence Zone *</label>
+                <select className="form-input" value={form.geofence_id} onChange={e => setForm(f => ({ ...f, geofence_id: e.target.value }))} required>
+                  <option value="">Select zone…</option>
+                  {geofences.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="form-label">Trigger Event</label>
+                <select className="form-input" value={form.alert_type} onChange={e => setForm(f => ({ ...f, alert_type: e.target.value }))}>
+                  {EVENT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="form-label">Speed Limit (km/h)</label>
+                <input className="form-input" type="number" placeholder="Optional"
+                  value={form.speed_limit} onChange={e => setForm(f => ({ ...f, speed_limit: e.target.value }))} />
+              </div>
             </div>
-            <div>
-              <label className="form-label">Vehicle (optional)</label>
-              <select className="form-input" value={form.vehicle_id} onChange={e => setForm(f => ({ ...f, vehicle_id: e.target.value }))}>
-                <option value="">All Vehicles</option>
-                {vehicles.map(v => <option key={v.id} value={v.id}>{v.vehicle_number}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="form-label">Event Type</label>
-              <select className="form-input" value={form.event_type} onChange={e => setForm(f => ({ ...f, event_type: e.target.value }))}>
-                <option value="entry">Entry Only</option>
-                <option value="exit">Exit Only</option>
-                <option value="both">Entry &amp; Exit</option>
-              </select>
-            </div>
-            <div style={{ gridColumn: "1/-1", display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button type="button" className="btn-ghost" onClick={() => setShowForm(false)}>Cancel</button>
               <button type="submit" className="btn-primary" disabled={loading}>
-                {loading ? "Saving..." : "Save Rule"} <ChevronRight size={16} />
+                {loading ? "Saving…" : <>Save Rule <ChevronRight size={13} /></>}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      <div className="glass" style={{ overflow: "hidden" }}>
-        <div style={{ padding: "16px 24px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", gap: 8 }}>
-          <Settings size={16} color="#f59e0b" />
-          <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "#94a3b8" }}>Active Rules — {rules.length} configured</span>
+      {/* Rules table */}
+      <div className="panel" style={{ overflow: "hidden" }}>
+        <div className="panel-header">
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Bell size={14} color="var(--amber)" />
+            <span className="panel-title">Active Rules</span>
+          </div>
+          <span className="badge badge-amber">{rules.length}</span>
         </div>
         {rules.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 0" }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🔔</div>
-            <div style={{ color: "#334155", fontWeight: 600 }}>No alert rules yet</div>
-            <div style={{ color: "#1e293b", fontSize: "0.8rem", marginTop: 4 }}>Create a rule to start receiving geofence alerts</div>
+            <Bell size={32} color="var(--text-3)" style={{ margin: "0 auto 12px" }} />
+            <div style={{ fontSize: "0.85rem", color: "var(--text-3)" }}>No alert rules configured</div>
+            <div style={{ fontSize: "0.75rem", color: "var(--text-3)", opacity: 0.6, marginTop: 4 }}>Create a rule to monitor vehicle–zone interactions</div>
           </div>
         ) : (
           <table className="data-table">
-            <thead><tr><th>#</th><th>Geofence</th><th>Vehicle</th><th>Event Type</th><th>Created</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Vehicle</th>
+                <th>Zone</th>
+                <th>Trigger</th>
+                <th>Speed Limit</th>
+                <th>Status</th>
+              </tr>
+            </thead>
             <tbody>
               {rules.map((r, i) => (
-                <tr key={r.id}>
-                  <td style={{ color: "#334155", fontFamily: "monospace" }}>{i + 1}</td>
-                  <td><span style={{ fontWeight: 600, color: "#e2e8f0" }}>{getGeofenceName(r.geofence_id)}</span></td>
-                  <td><span className="badge badge-cyan">{getVehicleName(r.vehicle_id)}</span></td>
-                  <td><span className={`badge ${EVENT_BADGE[r.event_type]}`}>{r.event_type}</span></td>
-                  <td style={{ color: "#475569", fontSize: "0.8rem" }}>
-                    {r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}
+                <tr key={r.id || i}>
+                  <td>
+                    <span style={{ fontWeight: 600, color: "var(--text-1)", fontFamily: "Space Grotesk" }}>
+                      {getLabel(vehicles, r.vehicle_id, "vehicle_number") || r.vehicle_id?.slice(0,8)}
+                    </span>
                   </td>
+                  <td style={{ color: "var(--text-2)" }}>{getLabel(geofences, r.geofence_id)}</td>
+                  <td>
+                    <span className={`badge ${
+                      r.alert_type === "entry" ? "badge-green" :
+                      r.alert_type === "exit"  ? "badge-red"   : "badge-blue"
+                    }`}>
+                      {r.alert_type?.toUpperCase()}
+                    </span>
+                  </td>
+                  <td>
+                    {r.speed_limit ? (
+                      <span className="mono text-amber" style={{ fontSize: "0.78rem" }}>{r.speed_limit} km/h</span>
+                    ) : (
+                      <span className="text-muted mono" style={{ fontSize: "0.78rem" }}>—</span>
+                    )}
+                  </td>
+                  <td><span className="badge badge-green">ACTIVE</span></td>
                 </tr>
               ))}
             </tbody>

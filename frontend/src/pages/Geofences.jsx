@@ -1,73 +1,159 @@
-import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Polygon, useMapEvents } from "react-leaflet";
+import { useEffect, useState, useRef } from "react";
+import { MapContainer, TileLayer, FeatureGroup, Polygon, Tooltip } from "react-leaflet";
+import { EditControl } from "react-leaflet-draw";
 import "leaflet/dist/leaflet.css";
+import "leaflet-draw/dist/leaflet.draw.css";
 import { geofenceAPI } from "../api";
 import toast from "react-hot-toast";
-import { Plus, MapPin, Trash2, X, ChevronRight, Layers } from "lucide-react";
+import { Plus, X, Hexagon, Layers, ChevronRight } from "lucide-react";
 
-const CATEGORIES = ["warehouse", "restricted", "delivery", "depot", "custom"];
-const CAT_COLORS = { warehouse:"badge-indigo", restricted:"badge-red", delivery:"badge-green", depot:"badge-amber", custom:"badge-purple" };
-const POLY_COLORS = { warehouse:"#6366f1", restricted:"#f43f5e", delivery:"#10b981", depot:"#f59e0b", custom:"#8b5cf6" };
-
-function PolygonDrawer({ points, setPoints }) {
-  useMapEvents({
-    click(e) { setPoints(p => [...p, [e.latlng.lat, e.latlng.lng]]); }
-  });
-  return points.length >= 3
-    ? <Polygon positions={[...points, points[0]]} pathOptions={{ color: "#6366f1", fillColor: "#6366f1", fillOpacity: 0.15, weight: 2 }} />
-    : null;
-}
+const CATEGORIES = ["restricted", "parking", "warehouse", "delivery", "custom"];
+const CAT_COLOR = { restricted:"badge-red", parking:"badge-blue", warehouse:"badge-amber", delivery:"badge-green", custom:"badge-slate" };
 
 export default function Geofences() {
   const [geofences, setGeofences] = useState([]);
-  const [points, setPoints] = useState([]);
-  const [form, setForm] = useState({ name: "", category: "warehouse", description: "" });
-  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ name: "", category: "custom", description: "" });
+  const [pendingCoords, setPendingCoords] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
-  const load = () => geofenceAPI.list().then(r => { const d = r.data?.data ?? r.data; setGeofences(Array.isArray(d) ? d : []); });
+  const load = () => geofenceAPI.list().then(r => {
+    const d = r.data?.data ?? r.data;
+    setGeofences(Array.isArray(d) ? d : []);
+  });
+
   useEffect(() => { load(); }, []);
 
-  const submit = async e => {
+  const onCreated = e => {
+    const latlngs = e.layer.getLatLngs()[0].map(ll => ({ lat: ll.lat, lng: ll.lng }));
+    setPendingCoords(latlngs);
+    setShowForm(true);
+    toast("Zone drawn — fill in the details", { icon: "📍" });
+  };
+
+  const save = async e => {
     e.preventDefault();
-    if (points.length < 3) { toast.error("Draw at least 3 points on the map"); return; }
+    if (!pendingCoords) return toast.error("Draw a zone on the map first");
     setLoading(true);
     try {
-      await geofenceAPI.create({ ...form, coordinates: points.map(([lat, lng]) => ({ lat, lng })) });
-      toast.success("Geofence created!");
-      setPoints([]); setForm({ name: "", category: "warehouse", description: "" }); setShowForm(false); load();
-    } catch { toast.error("Creation failed"); }
+      await geofenceAPI.create({ ...form, coordinates: pendingCoords });
+      toast.success(`Zone "${form.name}" created`);
+      setForm({ name: "", category: "custom", description: "" });
+      setPendingCoords(null);
+      setShowForm(false);
+      load();
+    } catch { toast.error("Failed to create zone"); }
     finally { setLoading(false); }
   };
 
+  const polyColor = cat =>
+    cat === "restricted" ? "#ef4444" :
+    cat === "parking"    ? "#0ea5e9" :
+    cat === "warehouse"  ? "#f59e0b" :
+    cat === "delivery"   ? "#22c55e" : "#94a3b8";
+
   return (
-    <div style={{ padding: "32px 36px", minHeight: "100vh", background: "#0a0f1e" }}>
-      <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
-            <div style={{ width: 4, height: 28, borderRadius: 4, background: "linear-gradient(180deg, #8b5cf6, #7c3aed)" }} />
-            <h1 className="page-title">Geofences</h1>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-base)", overflow: "hidden" }}>
+
+      {/* Top bar */}
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "14px 24px",
+        borderBottom: "1px solid var(--border)",
+        background: "var(--bg-base)",
+        flexShrink: 0,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 3, height: 20, background: "var(--amber)", borderRadius: 2, boxShadow: "0 0 8px var(--amber)" }} />
+          <div>
+            <h1 style={{ fontFamily: "Space Grotesk", fontSize: "1.1rem", fontWeight: 700, color: "var(--text-1)", lineHeight: 1.2 }}>
+              Geofence Zones
+            </h1>
+            <p className="page-sub">{geofences.length} zone{geofences.length !== 1 ? "s" : ""} · draw polygons on the map</p>
           </div>
-          <p className="page-subtitle">Draw polygon zones to monitor vehicle boundaries</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowForm(s => !s)}>
-          {showForm ? <X size={16} /> : <Plus size={16} />}
-          {showForm ? "Cancel" : "Create Geofence"}
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {pendingCoords && (
+            <span className="badge badge-amber" style={{ padding: "5px 10px" }}>
+              ✦ Zone drawn — fill form
+            </span>
+          )}
+          {showForm && (
+            <button className="btn-ghost" onClick={() => { setShowForm(false); setPendingCoords(null); }}>
+              <X size={13} /> Cancel
+            </button>
+          )}
+        </div>
       </div>
 
-      {showForm && (
-        <div className="glass card-glow-violet" style={{ padding: 28, marginBottom: 24 }}>
-          <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: "#e2e8f0", marginBottom: 16 }}>
-            Define New Zone
-          </h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-            <div>
-              <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+        {/* Map */}
+        <div style={{ flex: 1, position: "relative" }}>
+          <MapContainer
+            center={[28.6139, 77.2090]}
+            zoom={12}
+            style={{ width: "100%", height: "100%" }}
+          >
+            <TileLayer
+              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+              attribution="&copy; CartoDB"
+            />
+            <FeatureGroup>
+              <EditControl
+                position="topright"
+                onCreated={onCreated}
+                draw={{
+                  polygon: { shapeOptions: { color: "#0ea5e9", fillColor: "#0ea5e9", fillOpacity: 0.15, weight: 2 } },
+                  rectangle: false, circle: false, marker: false, circlemarker: false, polyline: false,
+                }}
+              />
+              {geofences.map(g => {
+                const coords = g.coordinates?.map?.(c => [c.lat, c.lng]);
+                if (!coords?.length) return null;
+                const color = polyColor(g.category);
+                return (
+                  <Polygon
+                    key={g.id}
+                    positions={coords}
+                    pathOptions={{ color, fillColor: color, fillOpacity: 0.1, weight: 2 }}
+                  >
+                    <Tooltip permanent direction="center" className="zone-tooltip">
+                      <span style={{ fontFamily: "Space Grotesk", fontWeight: 700, fontSize: 11, color: color }}>
+                        {g.name}
+                      </span>
+                    </Tooltip>
+                  </Polygon>
+                );
+              })}
+            </FeatureGroup>
+          </MapContainer>
+        </div>
+
+        {/* Right panel */}
+        <div style={{
+          width: 300,
+          borderLeft: "1px solid var(--border)",
+          display: "flex",
+          flexDirection: "column",
+          background: "var(--bg-base)",
+          overflow: "hidden",
+        }}>
+          {/* Create form */}
+          {showForm && (
+            <div style={{ padding: 16, borderBottom: "1px solid var(--border)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 14 }}>
+                <Hexagon size={13} color="var(--amber)" />
+                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-2)", fontFamily: "Space Grotesk", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  New Zone
+                </span>
+              </div>
+              <form onSubmit={save} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div>
                   <label className="form-label">Zone Name *</label>
-                  <input className="form-input" placeholder="e.g. Main Warehouse" required
-                    value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+                  <input className="form-input" placeholder="e.g. Warehouse A"
+                    value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
                 </div>
                 <div>
                   <label className="form-label">Category</label>
@@ -77,74 +163,94 @@ export default function Geofences() {
                 </div>
                 <div>
                   <label className="form-label">Description</label>
-                  <input className="form-input" placeholder="Optional note about this zone"
+                  <input className="form-input" placeholder="Optional note"
                     value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
-                  {points.map((p, i) => (
-                    <span key={i} className="badge badge-indigo" style={{ cursor: "pointer", fontSize: "0.65rem" }}
-                      onClick={() => setPoints(pts => pts.filter((_, j) => j !== i))}>
-                      {p[0].toFixed(3)}, {p[1].toFixed(3)} ✕
+                {pendingCoords && (
+                  <div style={{ padding: "8px 10px", background: "rgba(14,165,233,0.06)", border: "1px solid rgba(14,165,233,0.15)", borderRadius: 6 }}>
+                    <span style={{ fontSize: "0.68rem", color: "var(--blue)", fontFamily: "JetBrains Mono" }}>
+                      ✓ {pendingCoords.length} vertices captured
                     </span>
-                  ))}
-                  {points.length === 0 && <span style={{ fontSize: "0.75rem", color: "#334155" }}>Click on the map to add polygon points →</span>}
-                </div>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button type="button" className="btn-ghost" onClick={() => setPoints([])}>
-                    <Trash2 size={14} /> Clear Points
-                  </button>
-                  <button type="submit" className="btn-primary" disabled={loading || points.length < 3}>
-                    {loading ? "Saving..." : "Save Geofence"} <ChevronRight size={16} />
-                  </button>
-                </div>
+                  </div>
+                )}
+                <button type="submit" className="btn-primary" disabled={loading}>
+                  {loading ? "Saving…" : <>Save Zone <ChevronRight size={13} /></>}
+                </button>
               </form>
             </div>
-            <div className="map-container" style={{ height: 320 }}>
-              <MapContainer center={[28.47, 77.5]} zoom={11} style={{ height: "100%", width: "100%", borderRadius: 14 }}>
-                <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution="©OpenStreetMap ©Carto" />
-                <PolygonDrawer points={points} setPoints={setPoints} />
-              </MapContainer>
+          )}
+
+          {/* Zone list */}
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            <div style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              padding: "12px 16px 8px",
+              borderBottom: "1px solid var(--border)",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <Layers size={13} color="var(--text-3)" />
+                <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "Space Grotesk" }}>
+                  Zones ({geofences.length})
+                </span>
+              </div>
+            </div>
+            {geofences.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px 20px" }}>
+                <Hexagon size={28} color="var(--text-3)" style={{ margin: "0 auto 10px" }} />
+                <div style={{ fontSize: "0.78rem", color: "var(--text-3)" }}>No zones yet</div>
+                <div style={{ fontSize: "0.68rem", color: "var(--text-3)", opacity: 0.6, marginTop: 4 }}>
+                  Draw a polygon on the map
+                </div>
+              </div>
+            ) : geofences.map(g => {
+              const color = polyColor(g.category);
+              return (
+                <div key={g.id} style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "11px 16px",
+                  borderBottom: "1px solid var(--border)",
+                  transition: "background 0.1s",
+                  cursor: "default",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "var(--bg-hover)"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                  <div style={{ width: 10, height: 10, borderRadius: 2, background: color, flexShrink: 0, boxShadow: `0 0 6px ${color}60` }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-1)", fontFamily: "Space Grotesk", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {g.name}
+                    </div>
+                    <div style={{ fontSize: "0.65rem", color: "var(--text-3)", marginTop: 2 }}>
+                      {g.coordinates?.length || 0} vertices
+                    </div>
+                  </div>
+                  <span className={`badge ${CAT_COLOR[g.category] || "badge-slate"}`} style={{ flexShrink: 0 }}>
+                    {g.category}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Legend */}
+          <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border)" }}>
+            <div style={{ fontSize: "0.6rem", fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8, fontFamily: "Space Grotesk" }}>
+              Zone Types
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              {[
+                { label: "Restricted", color: "#ef4444" },
+                { label: "Parking",    color: "#0ea5e9" },
+                { label: "Warehouse",  color: "#f59e0b" },
+                { label: "Delivery",   color: "#22c55e" },
+              ].map(l => (
+                <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <div style={{ width: 10, height: 3, borderRadius: 2, background: l.color }} />
+                  <span style={{ fontSize: "0.68rem", color: "var(--text-3)", fontFamily: "JetBrains Mono" }}>{l.label}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
-      )}
-
-      {/* Geofence list */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
-        {geofences.length === 0 ? (
-          <div className="glass" style={{ gridColumn: "1/-1", padding: "60px 0", textAlign: "center" }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🗺️</div>
-            <div style={{ color: "#334155", fontWeight: 600 }}>No geofences created yet</div>
-            <div style={{ color: "#1e293b", fontSize: "0.8rem", marginTop: 4 }}>Create your first monitoring zone</div>
-          </div>
-        ) : geofences.map(g => (
-          <div key={g.id} className="glass-sm"
-            style={{ padding: 20, transition: "transform 0.2s", cursor: "default" }}
-            onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
-            onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: 10,
-                  background: `${POLY_COLORS[g.category] || "#6366f1"}22`,
-                  border: `1px solid ${POLY_COLORS[g.category] || "#6366f1"}44`,
-                  display: "flex", alignItems: "center", justifyContent: "center"
-                }}>
-                  <MapPin size={16} color={POLY_COLORS[g.category] || "#6366f1"} />
-                </div>
-                <div>
-                  <div style={{ fontWeight: 700, color: "#e2e8f0", fontSize: "0.9rem" }}>{g.name}</div>
-                  <span className={`badge ${CAT_COLORS[g.category] || "badge-indigo"}`} style={{ marginTop: 2 }}>{g.category}</span>
-                </div>
-              </div>
-            </div>
-            {g.description && <p style={{ fontSize: "0.75rem", color: "#475569", marginBottom: 10 }}>{g.description}</p>}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.7rem", color: "#334155" }}>
-              <Layers size={12} />
-              {(g.coordinates?.length || 0)} polygon points
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );
