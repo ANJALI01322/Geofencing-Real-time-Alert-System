@@ -9,13 +9,13 @@ import (
 )
 
 // GetViolations handles GET /violations/history
-// Supports filters: vehicle_id, geofence_id, start_date, end_date, limit (default 50, max 500)
 func (h *Handler) GetViolations(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
 	q := r.URL.Query()
 	vehicleID  := q.Get("vehicle_id")
 	geofenceID := q.Get("geofence_id")
+	eventType  := q.Get("event_type")
 	startDate  := q.Get("start_date")
 	endDate    := q.Get("end_date")
 	limitStr   := q.Get("limit")
@@ -51,6 +51,11 @@ func (h *Handler) GetViolations(w http.ResponseWriter, r *http.Request) {
 	if geofenceID != "" {
 		query += fmt.Sprintf(" AND v.geofence_id = $%d", idx)
 		args = append(args, geofenceID)
+		idx++
+	}
+	if eventType != "" && (eventType == "entry" || eventType == "exit") {
+		query += fmt.Sprintf(" AND v.event_type = $%d", idx)
+		args = append(args, eventType)
 		idx++
 	}
 	if startDate != "" {
@@ -103,7 +108,6 @@ func (h *Handler) GetViolations(w http.ResponseWriter, r *http.Request) {
 		violations = append(violations, vr)
 	}
 
-	// Count total matching records (for pagination info)
 	var total int
 	countQuery := `SELECT COUNT(*) FROM violations v WHERE 1=1`
 	countArgs := []interface{}{}
@@ -118,14 +122,9 @@ func (h *Handler) GetViolations(w http.ResponseWriter, r *http.Request) {
 		countArgs = append(countArgs, geofenceID)
 		ci++
 	}
-	if startDate != "" {
-		countQuery += fmt.Sprintf(" AND v.timestamp >= $%d", ci)
-		countArgs = append(countArgs, startDate)
-		ci++
-	}
-	if endDate != "" {
-		countQuery += fmt.Sprintf(" AND v.timestamp <= $%d", ci)
-		countArgs = append(countArgs, endDate)
+	if eventType != "" && (eventType == "entry" || eventType == "exit") {
+		countQuery += fmt.Sprintf(" AND v.event_type = $%d", ci)
+		countArgs = append(countArgs, eventType)
 		ci++
 	}
 	_ = ci
@@ -136,12 +135,6 @@ func (h *Handler) GetViolations(w http.ResponseWriter, r *http.Request) {
 		"count":      len(violations),
 		"total":      total,
 		"limit":      limit,
-		"filters": map[string]string{
-			"vehicle_id":  vehicleID,
-			"geofence_id": geofenceID,
-			"start_date":  startDate,
-			"end_date":    endDate,
-		},
 	}, start)
 }
 
