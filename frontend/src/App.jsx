@@ -15,11 +15,11 @@ export default function App() {
     <BrowserRouter>
       <Toaster position="top-right" toastOptions={{
         duration: 4000,
-        style: { background:"#1a2234", color:"#e2e8f0", border:"1px solid rgba(99,102,241,0.3)", borderRadius:"12px", fontSize:"0.875rem", fontWeight:500, boxShadow:"0 8px 32px rgba(0,0,0,0.4)" },
-        success: { iconTheme: { primary:"#10b981", secondary:"#1a2234" } },
-        error:   { iconTheme: { primary:"#f43f5e", secondary:"#1a2234" } },
+        style: { background:"#FFFFFF", color:"#111827", border:"1px solid #E5E7EB", borderRadius:"10px", fontSize:"0.875rem", fontWeight:500, boxShadow:"0 4px 12px rgba(0,0,0,0.08)" },
+        success: { iconTheme: { primary:"#16A34A", secondary:"#FFFFFF" } },
+        error:   { iconTheme: { primary:"#DC2626", secondary:"#FFFFFF" } },
       }} />
-      <div style={{ display:"flex", height:"100vh", overflow:"hidden", background:"#0a0f1e" }}>
+      <div style={{ display:"flex", height:"100vh", overflow:"hidden", background:"#F8FAFC" }}>
         <Sidebar connected={connected} />
         <main style={{ flex:1, overflowY:"auto" }}>
           <Routes>
