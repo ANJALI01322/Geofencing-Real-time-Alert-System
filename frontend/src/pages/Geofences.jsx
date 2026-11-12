@@ -5,11 +5,11 @@ import { geofenceAPI } from "../api";
 import toast from "react-hot-toast";
 import { Hexagon, Layers, Trash2, CheckCircle, XCircle, ChevronRight, MousePointer2 } from "lucide-react";
 
-const CATEGORIES = ["restricted", "parking", "warehouse", "delivery", "custom"];
-const CAT_COLOR = { restricted:"badge-red", parking:"badge-blue", warehouse:"badge-amber", delivery:"badge-green", custom:"badge-slate" };
+const CATEGORIES = ["restricted_zone","delivery_zone","toll_zone","customer_area"];
+const CAT_COLOR = { restricted_zone:"badge-red", delivery_zone:"badge-green", toll_zone:"badge-amber", customer_area:"badge-blue" };
 
 const polyColor = cat =>
-  cat === "restricted" ? "#ef4444" :
+  cat === "restricted_zone" ? "#ef4444" :
   cat === "parking"    ? "#0ea5e9" :
   cat === "warehouse"  ? "#f59e0b" :
   cat === "delivery"   ? "#22c55e" : "#94a3b8";
@@ -22,7 +22,7 @@ function ClickHandler({ drawing, onPoint }) {
 
 export default function Geofences() {
   const [geofences, setGeofences] = useState([]);
-  const [form, setForm] = useState({ name: "", category: "custom", description: "" });
+  const [form, setForm] = useState({ name: "", category: "restricted_zone", description: "" });
   const [points, setPoints] = useState([]);   // current drawing points
   const [drawing, setDrawing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -54,9 +54,11 @@ export default function Geofences() {
     if (!form.name.trim()) return toast.error("Zone name required");
     setLoading(true);
     try {
-      await geofenceAPI.create({ ...form, coordinates: points });
+      const rawPoints = points.map(p => [p.lat, p.lng]);
+      const closedPoints = [...rawPoints, rawPoints[0]];
+      await geofenceAPI.create({ ...form, coordinates: closedPoints });
       toast.success(`Zone "${form.name}" created`);
-      setForm({ name: "", category: "custom", description: "" });
+      setForm({ name: "", category: "restricted_zone", description: "" });
       setPoints([]);
       setDrawing(false);
       load();
@@ -96,7 +98,7 @@ export default function Geofences() {
         {/* Map */}
         <div style={{ flex:1, position:"relative", cursor: drawing ? "crosshair" : "default" }}>
           <MapContainer center={[28.6139, 77.2090]} zoom={12} style={{ width:"100%", height:"100%" }}>
-            <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution="&copy; CartoDB" />
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; CartoDB" />
             <ClickHandler drawing={drawing} onPoint={addPoint} />
 
             {/* Drawing preview */}

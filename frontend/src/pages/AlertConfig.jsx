@@ -13,14 +13,14 @@ export default function AlertConfig() {
   const [vehicles,  setVehicles]  = useState([]);
   const [geofences, setGeofences] = useState([]);
   const [rules,     setRules]     = useState([]);
-  const [form, setForm] = useState({ vehicle_id: "", geofence_id: "", alert_type: "both", speed_limit: "" });
+  const [form, setForm] = useState({ vehicle_id: "", geofence_id: "", event_type: "both", speed_limit: "" });
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
-    vehicleAPI.list().then(r  => { const d = r.data?.data ?? r.data; setVehicles(Array.isArray(d) ? d : []); });
-    geofenceAPI.list().then(r => { const d = r.data?.data ?? r.data; setGeofences(Array.isArray(d) ? d : []); });
-    alertAPI.list().then(r    => { const d = r.data?.data ?? r.data; setRules(Array.isArray(d) ? d : []); });
+    vehicleAPI.list().then(r => { const d = r.data?.data?.vehicles ?? r.data?.vehicles ?? r.data; setVehicles(Array.isArray(d) ? d : []); });
+    geofenceAPI.list().then(r => { const d = r.data?.data?.geofences ?? r.data?.geofences ?? r.data; setGeofences(Array.isArray(d) ? d : []); });
+    alertAPI.list().then(r => { const d = r.data?.data?.rules ?? r.data?.rules ?? r.data?.data ?? r.data; setRules(Array.isArray(d) ? d : []); });
   }, []);
 
   const save = async e => {
@@ -33,7 +33,7 @@ export default function AlertConfig() {
       else delete payload.speed_limit;
       await alertAPI.configure(payload);
       toast.success("Alert rule saved");
-      setForm({ vehicle_id: "", geofence_id: "", alert_type: "both", speed_limit: "" });
+      setForm({ vehicle_id: "", geofence_id: "", event_type: "both", speed_limit: "" });
       setShowForm(false);
       alertAPI.list().then(r => { const d = r.data?.data ?? r.data; setRules(Array.isArray(d) ? d : []); });
     } catch { toast.error("Failed to save rule"); }
@@ -74,19 +74,19 @@ export default function AlertConfig() {
                 <label className="form-label">Vehicle *</label>
                 <select className="form-input" value={form.vehicle_id} onChange={e => setForm(f => ({ ...f, vehicle_id: e.target.value }))} required>
                   <option value="">Select vehicle…</option>
-                  {vehicles.map(v => <option key={v.id} value={v.id}>{v.vehicle_number}</option>)}
+                  {vehicles.map(v => <option key={v.vehicle_id} value={v.vehicle_id}>{v.vehicle_number} — {v.driver_name}</option>)}
                 </select>
               </div>
               <div>
                 <label className="form-label">Geofence Zone *</label>
                 <select className="form-input" value={form.geofence_id} onChange={e => setForm(f => ({ ...f, geofence_id: e.target.value }))} required>
                   <option value="">Select zone…</option>
-                  {geofences.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  {geofences.map(g => <option key={g.geofence_id} value={g.geofence_id}>{g.geofence_name}</option>)}
                 </select>
               </div>
               <div>
                 <label className="form-label">Trigger Event</label>
-                <select className="form-input" value={form.alert_type} onChange={e => setForm(f => ({ ...f, alert_type: e.target.value }))}>
+                <select className="form-input" value={form.event_type} onChange={e => setForm(f => ({ ...f, event_type: e.target.value }))}>
                   {EVENT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
@@ -137,16 +137,16 @@ export default function AlertConfig() {
                 <tr key={r.id || i}>
                   <td>
                     <span style={{ fontWeight: 600, color: "var(--text-1)", fontFamily: "Space Grotesk" }}>
-                      {getLabel(vehicles, r.vehicle_id, "vehicle_number") || r.vehicle_id?.slice(0,8)}
+                      {vehicles.find(v=>v.vehicle_id===r.vehicle_id)?.vehicle_number || r.vehicle_id?.slice(0,8) || '—'}
                     </span>
                   </td>
-                  <td style={{ color: "var(--text-2)" }}>{getLabel(geofences, r.geofence_id)}</td>
+                  <td style={{ color: "var(--text-2)" }}>{geofences.find(g=>g.geofence_id===r.geofence_id)?.geofence_name || r.geofence_id?.slice(0,8) || '—'}</td>
                   <td>
                     <span className={`badge ${
-                      r.alert_type === "entry" ? "badge-green" :
-                      r.alert_type === "exit"  ? "badge-red"   : "badge-blue"
+                      r.event_type === "entry" ? "badge-green" :
+                      r.event_type === "exit"  ? "badge-red"   : "badge-blue"
                     }`}>
-                      {r.alert_type?.toUpperCase()}
+                      {r.event_type?.toUpperCase()}
                     </span>
                   </td>
                   <td>

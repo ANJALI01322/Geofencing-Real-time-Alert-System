@@ -11,6 +11,10 @@ import (
 )
 
 var validCategories = map[string]bool{
+	"restricted":     true,
+	"parking":         true,
+	"warehouse":       true,
+	"delivery":        true,
 	"delivery_zone":  true,
 	"restricted_zone": true,
 	"toll_zone":      true,
