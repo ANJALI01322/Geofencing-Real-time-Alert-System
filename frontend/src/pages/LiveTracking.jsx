@@ -1,3 +1,4 @@
+import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Polygon, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -8,9 +9,9 @@ import { Navigation, Radio } from "lucide-react";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+  iconRetinaUrl: new URL("leaflet/dist/images/marker-icon-2x.png", import.meta.url).href,
+  iconUrl: new URL("leaflet/dist/images/marker-icon.png", import.meta.url).href,
+  shadowUrl: new URL("leaflet/dist/images/marker-shadow.png", import.meta.url).href,
 });
 
 const makeIcon = (color) =>
@@ -92,7 +93,7 @@ export default function LiveTracking() {
   // WebSocket
   useEffect(() => {
     const connect = () => {
-      const ws = new WebSocket(`ws://${window.location.hostname}:8080/ws`);
+      const ws = new WebSocket(`wss://geofencing-real-time-alert-system-h1vz.onrender.com/ws`);
       wsRef.current = ws;
       ws.onopen = () => setWsStatus("live");
       ws.onmessage = (e) => {
@@ -208,3 +209,7 @@ export default function LiveTracking() {
     </div>
   );
 }
+
+
+
+
