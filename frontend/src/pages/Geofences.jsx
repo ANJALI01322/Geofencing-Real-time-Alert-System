@@ -135,7 +135,7 @@ export default function Geofences() {
 
             {/* Saved geofences */}
             {geofences.map(g => {
-              const coords = g.coordinates?.map?.(c => [c.lat, c.lng]);
+              const coords = g.coordinates?.map?.(c => Array.isArray(c) ? [c[0], c[1]] : [c.lat, c.lng]);
               if (!coords?.length) return null;
               const color = polyColor(g.category);
               return (
