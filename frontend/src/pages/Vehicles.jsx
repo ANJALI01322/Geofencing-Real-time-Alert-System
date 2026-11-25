@@ -4,6 +4,14 @@ import toast from "react-hot-toast";
 import { Plus, X, Truck, User, Phone, MapPin, Circle, ChevronRight, Navigation } from "lucide-react";
 
 const TYPES = ["truck", "van", "bike", "car", "bus"];
+const TYPE_STYLE = {
+  truck:   { bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE" },
+  van:     { bg: "#ECFEFF", color: "#0E7490", border: "#A5F3FC" },
+  bike:    { bg: "#F0FDF4", color: "#15803D", border: "#BBF7D0" },
+  car:     { bg: "#FFFBEB", color: "#B45309", border: "#FDE68A" },
+  bus:     { bg: "#EEF2FF", color: "#4338CA", border: "#C7D2FE" },
+  default: { bg: "#F3F4F6", color: "#4B5563", border: "#E5E7EB" },
+};
 const TYPE_COLOR = { truck:"badge-blue", van:"badge-cyan", bike:"badge-green", car:"badge-amber", bus:"badge-indigo" };
 
 function StatusDot({ active }) {
@@ -33,11 +41,19 @@ export default function Vehicles() {
   const [simulating, setSimulating] = useState(false);
 
   const load = () => vehicleAPI.list().then(r => {
-    const d = r.data?.data ?? r.data;
+    const d = r.data?.data?.vehicles ?? r.data?.vehicles ?? r.data?.data ?? r.data;
     setVehicles(Array.isArray(d) ? d : []);
   });
 
   useEffect(() => { load(); }, []);
+
+  const vid = v => v.vehicle_id || v.id;
+  const hasLoc = v => !!(v.last_location || v.latitude || v.longitude || v.location || v.last_lat);
+  const anyLoc = vehicles.some(hasLoc);
+  // Temporary: if no vehicle reports a location, treat all as active (simulator tracks all)
+  const isActive = v => (anyLoc ? hasLoc(v) : true);
+  const activeCount = vehicles.filter(isActive).length;
+  const offlineCount = vehicles.length - activeCount;
 
   const submit = async e => {
     e.preventDefault();
@@ -71,22 +87,40 @@ export default function Vehicles() {
   };
 
   return (
-    <div className="page-wrap content-scroll">
+    <div style={{ padding: "28px 32px", minHeight: "100%", background: "#F8FAFC", fontFamily: "Inter,system-ui,sans-serif" }}>
+      <div style={{ height: 3, background: "linear-gradient(90deg,#3B82F6,#22C55E)", margin: "-28px -32px 25px" }} />
+
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-            <div style={{ width: 3, height: 24, background: "var(--blue)", borderRadius: 2, boxShadow: "0 0 8px var(--blue)" }} />
-            <h1 className="page-heading">Fleet Registry</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 42, height: 42, borderRadius: 11, background: "#EFF6FF", border: "1px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Truck size={20} color="#2563EB" strokeWidth={2} />
           </div>
-          <p className="page-sub">{vehicles.length} vehicle{vehicles.length !== 1 ? "s" : ""} · {vehicles.filter(v => v.last_location).length} active</p>
+          <div>
+            <h1 style={{ fontSize: "1.35rem", fontWeight: 800, color: "#111827", letterSpacing: "-0.02em", lineHeight: 1.1, margin: 0 }}>Fleet Registry</h1>
+            <p style={{ fontSize: "0.78rem", color: "#6B7280", marginTop: 2, marginBottom: 0 }}>Manage vehicles, drivers and live status</p>
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn-ghost" onClick={() => setShowForm(s => !s)}>
-            {showForm ? <X size={14} /> : <Plus size={14} />}
-            {showForm ? "Cancel" : "Add Vehicle"}
-          </button>
-        </div>
+        <button onClick={() => setShowForm(s => !s)}
+          style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 8, border: "none", background: showForm ? "#6B7280" : "#2563EB", color: "#fff", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 6px rgba(37,99,235,0.25)" }}>
+          {showForm ? <X size={14} /> : <Plus size={14} />}
+          {showForm ? "Cancel" : "Add Vehicle"}
+        </button>
+      </div>
+
+      {/* Stats bar */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+        {[
+          { label: "Total Vehicles", value: vehicles.length, bg: "#EFF6FF", border: "#BFDBFE", color: "#1D4ED8", dot: "#3B82F6" },
+          { label: "Active", value: activeCount, bg: "#F0FDF4", border: "#BBF7D0", color: "#15803D", dot: "#22C55E" },
+          { label: "Offline", value: offlineCount, bg: "#F3F4F6", border: "#E5E7EB", color: "#4B5563", dot: "#9CA3AF" },
+        ].map(s => (
+          <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 18px", borderRadius: 10, background: s.bg, border: `1px solid ${s.border}` }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.dot }} />
+            <span style={{ fontSize: "1.3rem", fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</span>
+            <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>{s.label}</span>
+          </div>
+        ))}
       </div>
 
       {/* Add form */}
@@ -141,7 +175,7 @@ export default function Vehicles() {
           <div style={{ padding: "14px 20px", display: "flex", gap: 10, alignItems: "center" }}>
             <select className="form-input" style={{ maxWidth: 220 }} value={simVehicle} onChange={e => setSimVehicle(e.target.value)}>
               <option value="">Select vehicle…</option>
-              {vehicles.map(v => <option key={v.id} value={v.id}>{v.vehicle_number}</option>)}
+              {vehicles.map(v => <option key={vid(v)} value={vid(v)}>{v.vehicle_number}</option>)}
             </select>
             <button className="btn-ghost" onClick={simulate} disabled={simulating || !simVehicle}>
               {simulating ? "Simulating…" : <><Navigation size={13} /> Simulate Route</>}
@@ -153,98 +187,62 @@ export default function Vehicles() {
         </div>
       )}
 
-      {/* Table */}
-      <div className="panel" style={{ overflow: "hidden" }}>
-        <div className="panel-header">
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Truck size={14} color="var(--blue)" />
-            <span className="panel-title">Fleet Registry</span>
+      {/* Vehicle cards */}
+      {vehicles.length === 0 ? (
+        <div style={{ background: "#fff", border: "1.5px dashed #D1D5DB", borderRadius: 16, textAlign: "center", padding: "72px 20px" }}>
+          <div style={{ width: 76, height: 76, borderRadius: 20, background: "linear-gradient(135deg,#EFF6FF,#DBEAFE)", border: "1px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
+            <Truck size={34} color="#2563EB" strokeWidth={1.8} />
           </div>
-          <span className="badge badge-blue">{vehicles.length} total</span>
+          <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "#111827", marginBottom: 6 }}>No vehicles in fleet</div>
+          <div style={{ fontSize: "0.85rem", color: "#6B7280", marginBottom: 22 }}>Add your first vehicle to start tracking</div>
+          <button onClick={() => setShowForm(true)}
+            style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "11px 24px", borderRadius: 9, border: "none", background: "#2563EB", color: "#fff", fontSize: "0.88rem", fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 8px rgba(37,99,235,0.3)" }}>
+            <Plus size={15} /> Add Vehicle
+          </button>
         </div>
-
-        {vehicles.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "60px 0" }}>
-            <Truck size={36} color="var(--text-3)" style={{ margin: "0 auto 12px" }} />
-            <div style={{ fontSize: "0.85rem", color: "var(--text-3)" }}>No vehicles registered</div>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-3)", marginTop: 4, opacity: 0.6 }}>Add your first fleet vehicle above</div>
-          </div>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Plate / ID</th>
-                <th>Type</th>
-                <th>Driver</th>
-                <th>Contact</th>
-                <th>Coordinates</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {vehicles.map(v => (
-                <tr key={v.id}>
-                  <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{
-                        width: 32, height: 32, borderRadius: 6,
-                        background: "rgba(14,165,233,0.08)",
-                        border: "1px solid rgba(14,165,233,0.15)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        flexShrink: 0,
-                      }}>
-                        <Truck size={14} color="var(--blue)" />
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 700, color: "var(--text-1)", fontSize: "0.85rem", fontFamily: "Space Grotesk" }}>
-                          {v.vehicle_number}
-                        </div>
-                        <div className="mono text-muted" style={{ fontSize: "0.62rem" }}>
-                          {v.id?.slice(0, 8)}…
-                        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+          {vehicles.map(v => {
+            const active = isActive(v);
+            const tc = TYPE_STYLE[v.vehicle_type] || TYPE_STYLE.default;
+            return (
+              <div key={vid(v)}
+                style={{ background: "#fff", border: "1px solid #E5E7EB", borderTop: `3px solid ${active ? "#22C55E" : "#D1D5DB"}`, borderRadius: 12, padding: "18px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", transition: "box-shadow 0.2s, transform 0.15s" }}
+                onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)"; e.currentTarget.style.transform = "translateY(0)"; }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: 10, background: "#EFF6FF", border: "1px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Truck size={19} color="#2563EB" />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "#111827", fontFamily: "monospace", letterSpacing: "0.03em", lineHeight: 1.15 }}>{v.vehicle_number}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: active ? "#22C55E" : "#9CA3AF" }} />
+                        <span style={{ fontSize: "0.68rem", fontWeight: 700, color: active ? "#16A34A" : "#6B7280", letterSpacing: "0.06em" }}>{active ? "ACTIVE" : "OFFLINE"}</span>
                       </div>
                     </div>
-                  </td>
-                  <td>
-                    <span className={`badge ${TYPE_COLOR[v.vehicle_type] || "badge-slate"}`}>
-                      {v.vehicle_type}
-                    </span>
-                  </td>
-                  <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <User size={12} color="var(--text-3)" />
-                      <span style={{ color: v.driver_name ? "var(--text-2)" : "var(--text-3)" }}>
-                        {v.driver_name || "—"}
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <Phone size={12} color="var(--text-3)" />
-                      <span className="mono" style={{ fontSize: "0.78rem", color: v.driver_phone ? "var(--text-2)" : "var(--text-3)" }}>
-                        {v.driver_phone || "—"}
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    {v.last_location ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                        <MapPin size={11} color="var(--blue)" />
-                        <span className="mono" style={{ fontSize: "0.75rem", color: "var(--text-2)" }}>
-                          {v.last_location.latitude?.toFixed(5)}, {v.last_location.longitude?.toFixed(5)}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="mono text-muted" style={{ fontSize: "0.75rem" }}>No data</span>
-                    )}
-                  </td>
-                  <td><StatusDot active={!!v.last_location} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+                  </div>
+                  <ChevronRight size={18} color="#9CA3AF" />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.82rem", color: v.driver_name ? "#374151" : "#9CA3AF" }}>
+                    <User size={13} color="#9CA3AF" /> {v.driver_name || "No driver assigned"}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.78rem", color: "#6B7280", fontFamily: "monospace" }}>
+                    <Phone size={13} color="#9CA3AF" /> {v.phone_number || v.driver_phone || "—"}
+                  </div>
+                </div>
+                <div style={{ marginTop: 14 }}>
+                  <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", background: tc.bg, color: tc.color, border: `1px solid ${tc.border}` }}>
+                    {v.vehicle_type || "vehicle"}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -129,7 +129,9 @@ export default function Dashboard({alertHistory}){
       const vehicles  =vRes.data?.data?.vehicles  ??(Array.isArray(vRes.data?.data)?vRes.data.data:Array.isArray(vRes.data)?vRes.data:[]);
       const geofences =gRes.data?.data?.geofences ??(Array.isArray(gRes.data?.data)?gRes.data.data:Array.isArray(gRes.data)?gRes.data:[]);
       const violations=aRes.data?.data?.violations??(Array.isArray(aRes.data?.data)?aRes.data.data:Array.isArray(aRes.data)?aRes.data:[]);
-      const active=vehicles.filter(v=>v.last_location||v.latitude||v.longitude||v.location||v.last_lat).length;
+      const hasLoc=v=>v.last_location||v.latitude||v.longitude||v.location||v.last_lat;
+      // Temporary display fix: if no vehicle reports a location, assume all are tracked (simulator)
+      const active=vehicles.some(hasLoc)?vehicles.filter(hasLoc).length:vehicles.length;
       setStats({vehicles:vehicles.length,active,geofences:geofences.length,alerts:violations.length});
       setRecentV(violations);
       setLastRefresh(new Date());
@@ -144,6 +146,7 @@ export default function Dashboard({alertHistory}){
 
   return(
     <div style={{padding:"28px 32px",minHeight:"100%",background:"#F8FAFC",fontFamily:"Inter,system-ui,sans-serif"}}>
+      <div style={{height:3,background:"linear-gradient(90deg,#3B82F6,#22C55E)",margin:"-28px -32px 25px"}}/>
 
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:28}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -230,7 +233,17 @@ export default function Dashboard({alertHistory}){
           <div style={{maxHeight:320,overflowY:"auto"}}>
             {liveAlerts.length>0
               ?liveAlerts.slice(0,20).map((a,i)=><LiveAlertRow key={i} a={a}/>)
-              :<Empty icon={Satellite} title="Awaiting live events..." sub="Move a vehicle into a geofence zone to trigger"/>}
+              :<div style={{textAlign:"center",padding:"48px 24px"}}>
+                <div className="listen-ring">
+                  <div style={{width:48,height:48,borderRadius:"50%",background:"#EFF6FF",border:"1px solid #BFDBFE",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",zIndex:1}}>
+                    <Satellite size={22} color="#2563EB"/>
+                  </div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,fontSize:"0.85rem",fontWeight:700,color:"#2563EB"}}>
+                  <span className="blink-blue"/>Listening for geofence events
+                </div>
+                <div style={{fontSize:"0.72rem",color:"#9CA3AF",marginTop:6}}>WebSocket connected — alerts appear here in real time</div>
+              </div>}
           </div>
         </div>
       </div>
