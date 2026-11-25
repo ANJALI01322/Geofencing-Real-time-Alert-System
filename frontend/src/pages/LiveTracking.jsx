@@ -93,7 +93,7 @@ export default function LiveTracking() {
   // WebSocket
   useEffect(() => {
     const connect = () => {
-      const ws = new WebSocket(`wss://geofencing-real-time-alert-system-h1vz.onrender.com/ws`);
+      const ws = new WebSocket(import.meta.env.VITE_WS_URL || `wss://geofencing-real-time-alert-system-h1vz.onrender.com/ws/alerts`);
       wsRef.current = ws;
       ws.onopen = () => setWsStatus("live");
       ws.onmessage = (e) => {

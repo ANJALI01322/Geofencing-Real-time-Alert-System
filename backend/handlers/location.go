@@ -144,28 +144,10 @@ func (h *Handler) processGeofenceTransitions(
 			continue // No state change — skip
 		}
 
-		// Check if any alert rule matches this geofence + vehicle + event
-		var alertID string
-		err := h.DB.QueryRow(`
-			SELECT id FROM alert_rules
-			WHERE geofence_id = $1
-			  AND (vehicle_id = $2 OR vehicle_id IS NULL)
-			  AND (event_type = $3 OR event_type = 'both')
-			LIMIT 1
-		`, gf.ID, vehicle.ID, eventType).Scan(&alertID)
-
-		if err == sql.ErrNoRows {
-			continue // No matching alert rule
-		}
-		if err != nil {
-			log.Printf("Alert rule query error: %v", err)
-			continue
-		}
-
-		// Store the violation
+		// Store the violation (always, regardless of alert rules)
 		var violationID string
 		var violationTime time.Time
-		err = h.DB.QueryRow(`
+		err := h.DB.QueryRow(`
 			INSERT INTO violations (vehicle_id, geofence_id, event_type, latitude, longitude)
 			VALUES ($1, $2, $3, $4, $5)
 			RETURNING id, timestamp
@@ -176,6 +158,25 @@ func (h *Handler) processGeofenceTransitions(
 		}
 
 		log.Printf("🚨 %s event: vehicle=%s geofence=%s", eventType, vehicle.VehicleNumber, gf.Name)
+
+		// Check if any alert rule matches this geofence + vehicle + event
+		// (only decides whether to broadcast the WebSocket event)
+		var alertID string
+		err = h.DB.QueryRow(`
+			SELECT id FROM alert_rules
+			WHERE geofence_id = $1
+			  AND (vehicle_id = $2 OR vehicle_id IS NULL)
+			  AND (event_type = $3 OR event_type = 'both')
+			LIMIT 1
+		`, gf.ID, vehicle.ID, eventType).Scan(&alertID)
+
+		if err == sql.ErrNoRows {
+			continue // No matching alert rule — violation stored, no broadcast
+		}
+		if err != nil {
+			log.Printf("Alert rule query error: %v", err)
+			continue
+		}
 
 		// Build and broadcast the WebSocket alert event
 		event := models.AlertEvent{

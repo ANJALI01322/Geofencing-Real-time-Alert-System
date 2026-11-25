@@ -28,7 +28,7 @@ export default function Geofences() {
   const [loading, setLoading] = useState(false);
 
   const load = () => geofenceAPI.list().then(r => {
-    const d = r.data?.data ?? r.data;
+    const d = r.data?.data?.geofences ?? r.data?.data ?? r.data;
     setGeofences(Array.isArray(d) ? d : []);
   });
 

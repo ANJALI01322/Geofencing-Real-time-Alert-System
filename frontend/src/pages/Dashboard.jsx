@@ -129,7 +129,7 @@ export default function Dashboard({alertHistory}){
       const vehicles  =vRes.data?.data?.vehicles  ??(Array.isArray(vRes.data?.data)?vRes.data.data:Array.isArray(vRes.data)?vRes.data:[]);
       const geofences =gRes.data?.data?.geofences ??(Array.isArray(gRes.data?.data)?gRes.data.data:Array.isArray(gRes.data)?gRes.data:[]);
       const violations=aRes.data?.data?.violations??(Array.isArray(aRes.data?.data)?aRes.data.data:Array.isArray(aRes.data)?aRes.data:[]);
-      const active=vehicles.filter(v=>v.last_location||v.latitude).length;
+      const active=vehicles.filter(v=>v.last_location||v.latitude||v.longitude||v.location||v.last_lat).length;
       setStats({vehicles:vehicles.length,active,geofences:geofences.length,alerts:violations.length});
       setRecentV(violations);
       setLastRefresh(new Date());
