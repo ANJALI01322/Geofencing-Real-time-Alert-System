@@ -27,19 +27,22 @@ export default function Geofences() {
   const [drawing, setDrawing] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const [vioCounts, setVioCounts] = useState({});
+  const [violationCounts, setViolationCounts] = useState({});
 
   const load = () => {
-    violationAPI.history({ limit: 500 }).then(r => {
-      const v = r.data?.data?.violations ?? r.data?.violations ?? [];
-      const counts = {};
-      (Array.isArray(v) ? v : []).forEach(x => { counts[x.geofence_name] = (counts[x.geofence_name] || 0) + 1; });
-      setVioCounts(counts);
-    }).catch(() => {});
-    return geofenceAPI.list().then(r => {
+    geofenceAPI.list().then(r => {
       const d = r.data?.data?.geofences ?? r.data?.data ?? r.data;
-      setGeofences(Array.isArray(d) ? d : []);
-    });
+      const list = Array.isArray(d) ? d : [];
+      setGeofences(list);
+      violationAPI.history({ limit: 500 }).then(vr => {
+        const vs = vr.data?.data?.violations ?? vr.data?.data ?? vr.data ?? [];
+        const counts = {};
+        (Array.isArray(vs) ? vs : []).forEach(v => {
+          if (v.geofence_name) counts[v.geofence_name] = (counts[v.geofence_name] || 0) + 1;
+        });
+        setViolationCounts(counts);
+      }).catch(() => setViolationCounts({}));
+    }).catch(() => setGeofences([]));
   };
 
   useEffect(() => { load(); }, []);
@@ -228,8 +231,8 @@ export default function Geofences() {
                     <div style={{ fontSize:"0.82rem", fontWeight:600, color:"var(--text-1)", fontFamily:"Space Grotesk", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{g.name}</div>
                     <div style={{ fontSize:"0.65rem", color:"var(--text-3)", marginTop:2 }}>{g.coordinates?.length||0} vertices</div>
                   </div>
-                  {vioCounts[g.name] > 0 && (
-                    <span style={{ flexShrink:0, minWidth:18, textAlign:"center", padding:"1px 6px", borderRadius:10, background:"#ef4444", color:"#fff", fontSize:"0.62rem", fontWeight:700 }}>{vioCounts[g.name]}</span>
+                  {violationCounts[g.name] > 0 && (
+                    <span style={{ flexShrink:0, minWidth:18, textAlign:"center", padding:"1px 6px", borderRadius:10, background:"#ef4444", color:"#fff", fontSize:"0.62rem", fontWeight:700 }}>{violationCounts[g.name]}</span>
                   )}
                   <span className={`badge ${CAT_COLOR[g.category]||"badge-slate"}`} style={{ flexShrink:0 }}>{g.category}</span>
                 </div>
