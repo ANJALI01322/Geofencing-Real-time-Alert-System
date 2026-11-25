@@ -41,6 +41,37 @@ export default function LiveTracking() {
   const [wsStatus, setWsStatus] = useState("connecting");
   const wsRef = useRef(null);
   const simRef = useRef(null);
+  const playRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [playPos, setPlayPos] = useState(null); // { id, lat, lng }
+
+  const stopPlayback = () => {
+    clearInterval(playRef.current);
+    playRef.current = null;
+    setPlaying(false);
+    setPlayPos(null);
+  };
+
+  const startPlayback = async () => {
+    const id = selected || vehicles[0]?.vehicle_id;
+    if (!id) return toast("No history available");
+    try {
+      const r = await locationAPI.get(id);
+      const h = r.data?.data?.history;
+      if (!Array.isArray(h) || h.length < 2) return toast("No history available");
+      let i = 0;
+      setPlaying(true);
+      playRef.current = setInterval(() => {
+        if (i >= h.length) return stopPlayback();
+        setPlayPos({ id, lat: h[i].latitude, lng: h[i].longitude });
+        i++;
+      }, 500);
+    } catch {
+      toast("No history available");
+    }
+  };
+
+  useEffect(() => () => clearInterval(playRef.current), []);
 
   useEffect(() => {
     vehicleAPI
@@ -121,7 +152,8 @@ export default function LiveTracking() {
     return () => wsRef.current?.close();
   }, []);
 
-  const selPos = selected ? positions[selected] : null;
+  const posOf = (id) => (playPos && playPos.id === id ? playPos : positions[id]);
+  const selPos = selected ? posOf(selected) : null;
   const selVehicle = vehicles.find((v) => v.vehicle_id === selected);
 
   return (
@@ -136,7 +168,14 @@ export default function LiveTracking() {
               {wsStatus === "live" ? "● LIVE" : "● " + wsStatus.toUpperCase()}
             </span>
           </div>
-          <div style={{ fontSize: "0.65rem", color: "var(--text-3)" }}>{vehicles.length} vehicle{vehicles.length !== 1 ? "s" : ""} tracked</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ fontSize: "0.65rem", color: "var(--text-3)" }}>{vehicles.length} vehicle{vehicles.length !== 1 ? "s" : ""} tracked</div>
+            {playing ? (
+              <button onClick={stopPlayback} style={{ fontSize: "0.65rem", padding: "3px 9px", borderRadius: 6, border: "1px solid #ef4444", background: "rgba(239,68,68,0.1)", color: "#ef4444", cursor: "pointer", fontWeight: 600 }}>⏹ Stop</button>
+            ) : (
+              <button onClick={startPlayback} style={{ fontSize: "0.65rem", padding: "3px 9px", borderRadius: 6, border: "1px solid var(--blue)", background: "rgba(14,165,233,0.1)", color: "var(--blue)", cursor: "pointer", fontWeight: 600 }}>▶ Playback</button>
+            )}
+          </div>
         </div>
         <div style={{ flex: 1, overflowY: "auto" }}>
           {vehicles.map((v, i) => {
@@ -187,7 +226,7 @@ export default function LiveTracking() {
           })}
 
           {vehicles.map((v, i) => {
-            const pos = positions[v.vehicle_id];
+            const pos = posOf(v.vehicle_id);
             if (!pos || isNaN(pos.lat) || isNaN(pos.lng)) return null;
             const color = COLORS[i % COLORS.length];
             return (

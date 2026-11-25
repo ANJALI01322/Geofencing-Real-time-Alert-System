@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, Truck, Hexagon, Radio,
-  SlidersHorizontal, AlertOctagon, Wifi, WifiOff, Satellite
+  SlidersHorizontal, AlertOctagon, Wifi, WifiOff, Satellite, Bell
 } from "lucide-react";
 
 const NAV = [
@@ -11,6 +11,8 @@ const NAV = [
   { to: "/live-tracking", icon: Radio,             label: "Live Tracking"},
   { to: "/alert-config",  icon: SlidersHorizontal, label: "Alert Rules"  },
   { to: "/violations",    icon: AlertOctagon,      label: "Violations"   },
+  { to: "/alert-rules",   icon: Bell,              label: "Alert Rules"  },
+  { to: "/fleet-status",  icon: Truck,             label: "Fleet Status" },
 ];
 
 export default function Sidebar({ connected }) {

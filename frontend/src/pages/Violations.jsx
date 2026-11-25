@@ -13,6 +13,8 @@ export default function Violations() {
   const [filters, setFilters] = useState({ vehicle_id: "", geofence_id: "", event_type: "", limit: 50 });
   const [loading, setLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(null);
+  const [vehicleQuery, setVehicleQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -51,10 +53,15 @@ export default function Violations() {
   const totalExit  = violations.filter(v => v.event_type === "exit").length;
   const entryPct   = violations.length > 0 ? Math.round((totalEntry / violations.length) * 100) : 0;
 
+  const filtered = violations.filter(v =>
+    (!vehicleQuery || (v.vehicle_number || "").toLowerCase().includes(vehicleQuery.toLowerCase())) &&
+    (!typeFilter || v.event_type === typeFilter)
+  );
+
   const exportCSV = () => {
     const cols = ["timestamp", "vehicle_number", "geofence_name", "event_type"];
     const esc = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
-    const csv = [cols.join(","), ...violations.map(v => cols.map(c => esc(v[c])).join(","))].join("\n");
+    const csv = [cols.join(","), ...filtered.map(v => cols.map(c => esc(v[c])).join(","))].join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
     const a = document.createElement("a");
     a.href = url;
@@ -99,7 +106,7 @@ export default function Violations() {
               <Clock size={12} /> Last updated {format(lastRefresh, "HH:mm:ss")}
             </span>
           )}
-          <button onClick={exportCSV} disabled={violations.length === 0} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#fff", color: "#374151", fontSize: "0.82rem", fontWeight: 500, cursor: violations.length === 0 ? "default" : "pointer", fontFamily: "'Inter', sans-serif" }}>
+          <button onClick={exportCSV} disabled={filtered.length === 0} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#fff", color: "#374151", fontSize: "0.82rem", fontWeight: 500, cursor: filtered.length === 0 ? "default" : "pointer", fontFamily: "'Inter', sans-serif" }}>
             <Download size={13} />
             Export CSV
           </button>
@@ -108,6 +115,20 @@ export default function Violations() {
             Refresh
           </button>
         </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16 }}>
+        <input value={vehicleQuery} onChange={e => setVehicleQuery(e.target.value)} placeholder="Filter by vehicle number…"
+          style={{ ...sel, backgroundImage: "none", cursor: "text", minWidth: 220 }} />
+        <select style={{ ...sel, minWidth: 130 }} value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+          <option value="">All</option>
+          <option value="entry">Entry</option>
+          <option value="exit">Exit</option>
+        </select>
+        <button onClick={() => { setVehicleQuery(""); setTypeFilter(""); }}
+          style={{ padding: "9px 16px", borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#fff", color: "#374151", fontSize: "0.82rem", fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+          Clear
+        </button>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
@@ -200,7 +221,7 @@ export default function Violations() {
             <span style={{ fontSize: "0.88rem", fontWeight: 600, color: "#111827" }}>Events</span>
           </div>
           <span style={{ fontSize: "0.72rem", fontWeight: 700, color: violations.length > 0 ? "#DC2626" : "#6B7280", background: violations.length > 0 ? "#FEE2E2" : "#F3F4F6", padding: "3px 10px", borderRadius: 20, border: violations.length > 0 ? "1px solid #FCA5A5" : "1px solid #E5E7EB" }}>
-            {violations.length} records
+            {filtered.length} records
           </span>
         </div>
 
@@ -208,7 +229,7 @@ export default function Violations() {
           <div style={{ padding: "12px 16px 16px" }}>
             {[1,2,3,4,5].map(i => <div key={i} style={{ height: 56, marginBottom: 4, borderRadius: 8, background: "#F3F4F6" }} />)}
           </div>
-        ) : violations.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: "64px 20px" }}>
             <div style={{ width: 64, height: 64, borderRadius: 18, background: "#F9FAFB", border: "2px dashed #E5E7EB", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
               <AlertOctagon size={28} color="#D1D5DB" />
@@ -229,7 +250,7 @@ export default function Violations() {
                 </tr>
               </thead>
               <tbody>
-                {violations.map((v, i) => (
+                {filtered.map((v, i) => (
                   <tr key={v.event_id || v.id || i}
                     style={{ borderBottom: "1px solid #F3F4F6" }}
                     onMouseEnter={e => e.currentTarget.style.background = "#F9FAFB"}
@@ -286,7 +307,7 @@ export default function Violations() {
 
         {violations.length > 0 && (
           <div style={{ padding: "12px 20px", borderTop: "1px solid #F3F4F6", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FAFAFA" }}>
-            <span style={{ fontSize: "0.73rem", color: "#9CA3AF" }}>Showing {violations.length} of {filters.limit} max rows</span>
+            <span style={{ fontSize: "0.73rem", color: "#9CA3AF" }}>Showing {filtered.length} of {filters.limit} max rows</span>
             <div style={{ display: "flex", gap: 16 }}>
               <span style={{ fontSize: "0.73rem", color: "#16A34A", fontWeight: 700 }}>↓ {totalEntry} entries</span>
               <span style={{ fontSize: "0.73rem", color: "#DC2626", fontWeight: 700 }}>↑ {totalExit} exits</span>

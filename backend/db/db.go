@@ -121,4 +121,10 @@ DROP TRIGGER IF EXISTS trig_vehicles_upd  ON vehicles;
 DROP TRIGGER IF EXISTS trig_geofences_upd ON geofences;
 CREATE TRIGGER trig_vehicles_upd  BEFORE UPDATE ON vehicles  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trig_geofences_upd BEFORE UPDATE ON geofences FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Allow speed violations (no geofence, longer event_type)
+ALTER TABLE violations ALTER COLUMN event_type TYPE VARCHAR(20);
+ALTER TABLE violations ALTER COLUMN geofence_id DROP NOT NULL;
+ALTER TABLE violations DROP CONSTRAINT IF EXISTS violations_event_type_check;
+ALTER TABLE violations ADD CONSTRAINT violations_event_type_check CHECK (event_type IN ('entry','exit','speed_violation'));
 `

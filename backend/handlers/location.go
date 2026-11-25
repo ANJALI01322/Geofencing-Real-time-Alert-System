@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log"
+	"math"
 	"net/http"
 	"time"
 
@@ -67,11 +68,12 @@ func (h *Handler) UpdateLocation(w http.ResponseWriter, r *http.Request) {
 
 	// Get previous location (before inserting new one)
 	var prevLat, prevLng float64
+	var prevTime time.Time
 	var hasPrev bool
 	err = h.DB.QueryRow(`
-		SELECT latitude, longitude FROM vehicle_locations
+		SELECT latitude, longitude, timestamp FROM vehicle_locations
 		WHERE vehicle_id = $1 ORDER BY timestamp DESC LIMIT 1
-	`, req.VehicleID).Scan(&prevLat, &prevLng)
+	`, req.VehicleID).Scan(&prevLat, &prevLng, &prevTime)
 	if err == nil {
 		hasPrev = true
 	}
@@ -87,6 +89,11 @@ func (h *Handler) UpdateLocation(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.respondError(w, http.StatusInternalServerError, "Failed to store location", start)
 		return
+	}
+
+	// Speed check (previous point -> new point)
+	if hasPrev {
+		go h.checkSpeedViolation(vehicle, req.Latitude, req.Longitude, prevLat, prevLng, locTimestamp.Sub(prevTime).Seconds())
 	}
 
 	// Fetch all geofences for transition check
@@ -124,6 +131,64 @@ func (h *Handler) UpdateLocation(w http.ResponseWriter, r *http.Request) {
 		"timestamp":   locTimestamp,
 		"location_id": locID,
 	}, start)
+}
+
+const speedLimitKmh = 80.0
+
+// haversineMeters returns the great-circle distance between two points in meters.
+func haversineMeters(lat1, lng1, lat2, lng2 float64) float64 {
+	const earthRadius = 6371000.0
+	rad := math.Pi / 180
+	dLat := (lat2 - lat1) * rad
+	dLng := (lng2 - lng1) * rad
+	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
+		math.Cos(lat1*rad)*math.Cos(lat2*rad)*math.Sin(dLng/2)*math.Sin(dLng/2)
+	return earthRadius * 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+}
+
+// checkSpeedViolation runs in a goroutine. If the speed between the previous and
+// new position exceeds speedLimitKmh, it stores a 'speed_violation' and broadcasts it.
+func (h *Handler) checkSpeedViolation(vehicle models.Vehicle, newLat, newLng, prevLat, prevLng, seconds float64) {
+	if seconds <= 0 {
+		return
+	}
+	meters := haversineMeters(prevLat, prevLng, newLat, newLng)
+	speed := meters / seconds * 3.6
+	log.Printf("Speed check: vehicle=%s distance=%.1fm dt=%.2fs speed=%.1f km/h", vehicle.VehicleNumber, meters, seconds, speed)
+	if speed <= speedLimitKmh {
+		return
+	}
+
+	var violationID string
+	var violationTime time.Time
+	err := h.DB.QueryRow(`
+		INSERT INTO violations (vehicle_id, geofence_id, event_type, latitude, longitude)
+		VALUES ($1, NULL, 'speed_violation', $2, $3)
+		RETURNING id, timestamp
+	`, vehicle.ID, newLat, newLng).Scan(&violationID, &violationTime)
+	if err != nil {
+		log.Printf("Failed to store speed violation: %v", err)
+		return
+	}
+
+	log.Printf("🚨 speed_violation: vehicle=%s speed=%.1f km/h", vehicle.VehicleNumber, speed)
+
+	eventJSON, err := json.Marshal(models.AlertEvent{
+		EventID:   "evt_" + violationID,
+		EventType: "speed_violation",
+		Timestamp: violationTime,
+		Vehicle: models.VehicleInfo{
+			VehicleID:     vehicle.ID,
+			VehicleNumber: vehicle.VehicleNumber,
+			DriverName:    vehicle.DriverName,
+		},
+		Location: models.LocationInfo{Latitude: newLat, Longitude: newLng},
+	})
+	if err != nil {
+		log.Printf("Failed to marshal speed alert: %v", err)
+		return
+	}
+	h.Hub.Broadcast(eventJSON)
 }
 
 // processGeofenceTransitions runs in a goroutine.
@@ -273,10 +338,28 @@ func (h *Handler) GetLocation(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Recent position history (oldest -> newest) for route playback
+	history := []map[string]interface{}{}
+	if hRows, err := h.DB.Query(`
+		SELECT latitude, longitude, timestamp FROM vehicle_locations
+		WHERE vehicle_id = $1 ORDER BY timestamp DESC LIMIT 100
+	`, vehicleID); err == nil {
+		defer hRows.Close()
+		for hRows.Next() {
+			var lat, lng float64
+			var ts time.Time
+			if err := hRows.Scan(&lat, &lng, &ts); err != nil {
+				continue
+			}
+			history = append([]map[string]interface{}{{"latitude": lat, "longitude": lng, "timestamp": ts}}, history...)
+		}
+	}
+
 	h.respond(w, http.StatusOK, map[string]interface{}{
 		"vehicle":          vehicle,
 		"current_location": loc,
 		"inside_geofences": insideGeofences,
 		"geofence_count":   len(insideGeofences),
+		"history":          history,
 	}, start)
 }

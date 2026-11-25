@@ -31,13 +31,13 @@ func (h *Handler) GetViolations(w http.ResponseWriter, r *http.Request) {
 
 	query := `
 		SELECT
-			v.id, v.vehicle_id, v.geofence_id, v.event_type,
+			v.id, v.vehicle_id, COALESCE(v.geofence_id::text, ''), v.event_type,
 			v.latitude, v.longitude, v.timestamp,
 			vh.vehicle_number, vh.driver_name, vh.vehicle_type,
-			g.name AS geofence_name, g.category
+			COALESCE(g.name, '') AS geofence_name, COALESCE(g.category, '')
 		FROM violations v
 		JOIN vehicles  vh ON vh.id = v.vehicle_id
-		JOIN geofences g  ON g.id  = v.geofence_id
+		LEFT JOIN geofences g  ON g.id  = v.geofence_id
 		WHERE 1=1`
 
 	args := []interface{}{}

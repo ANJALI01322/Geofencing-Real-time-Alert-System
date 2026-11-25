@@ -8,6 +8,8 @@ import Geofences from "./pages/Geofences";
 import LiveTracking from "./pages/LiveTracking";
 import AlertConfig from "./pages/AlertConfig";
 import Violations from "./pages/Violations";
+import AlertRules from "./pages/AlertRules";
+import VehicleStatus from "./pages/VehicleStatus";
 
 export default function App() {
   const { lastAlert, connected, alertHistory } = useWebSocket();
@@ -30,6 +32,8 @@ export default function App() {
             <Route path="/live-tracking" element={<LiveTracking lastAlert={lastAlert} connected={connected} />} />
             <Route path="/alert-config"  element={<AlertConfig />} />
             <Route path="/violations"    element={<Violations />} />
+            <Route path="/alert-rules"   element={<AlertRules />} />
+            <Route path="/fleet-status"  element={<VehicleStatus />} />
           </Routes>
         </main>
       </div>
