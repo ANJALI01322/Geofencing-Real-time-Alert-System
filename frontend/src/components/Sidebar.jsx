@@ -9,7 +9,6 @@ const NAV = [
   { to: "/vehicles",      icon: Truck,             label: "Fleet"        },
   { to: "/geofences",     icon: Hexagon,           label: "Geofences"    },
   { to: "/live-tracking", icon: Radio,             label: "Live Tracking"},
-  { to: "/alert-config",  icon: SlidersHorizontal, label: "Alert Rules"  },
   { to: "/violations",    icon: AlertOctagon,      label: "Violations"   },
   { to: "/alert-rules",   icon: Bell,              label: "Alert Rules"  },
   { to: "/fleet-status",  icon: Truck,             label: "Fleet Status" },

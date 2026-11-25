@@ -257,9 +257,9 @@ export default function Violations() {
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                   >
                     <td style={{ padding: "14px 16px" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 20, fontSize: "0.7rem", fontWeight: 700, ...(v.event_type === "entry" ? { background: "#F0FDF4", color: "#16A34A", border: "1px solid #BBF7D0" } : { background: "#FFF1F2", color: "#DC2626", border: "1px solid #FECACA" }) }}>
-                        {v.event_type === "entry" ? <ArrowDownRight size={11} /> : <ArrowUpRight size={11} />}
-                        {v.event_type?.toUpperCase()}
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 20, fontSize: "0.7rem", fontWeight: 700, ...(v.event_type === "entry" ? { background: "#F0FDF4", color: "#16A34A", border: "1px solid #BBF7D0" } : v.event_type === "speed_violation" ? { background: "#FFF7ED", color: "#C2410C", border: "1px solid #FDBA74" } : { background: "#FFF1F2", color: "#DC2626", border: "1px solid #FECACA" }) }}>
+                        {v.event_type === "entry" ? <ArrowDownRight size={11} /> : v.event_type === "speed_violation" ? null : <ArrowUpRight size={11} />}
+                        {v.event_type === "speed_violation" ? "SPEED" : v.event_type?.toUpperCase()}
                       </span>
                     </td>
                     <td style={{ padding: "14px 16px" }}>

@@ -108,8 +108,8 @@ export default function LiveTracking() {
         const next = {};
         Object.keys(prev).forEach((id) => {
           next[id] = {
-            lat: prev[id].lat + (Math.random() - 0.5) * 0.003,
-            lng: prev[id].lng + (Math.random() - 0.5) * 0.003,
+            lat: prev[id].lat + (Math.random() - 0.5) * 0.0008,
+            lng: prev[id].lng + (Math.random() - 0.5) * 0.0008,
           };
           locationAPI
             .update({ vehicle_id: id, latitude: next[id].lat, longitude: next[id].lng })
