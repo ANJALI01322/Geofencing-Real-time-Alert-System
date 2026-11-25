@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { MapContainer, TileLayer, Polygon, Polyline, CircleMarker, useMapEvents, Tooltip } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { geofenceAPI } from "../api";
+import { geofenceAPI, violationAPI } from "../api";
 import toast from "react-hot-toast";
 import { Hexagon, Layers, Trash2, CheckCircle, XCircle, ChevronRight, MousePointer2 } from "lucide-react";
 
@@ -27,10 +27,20 @@ export default function Geofences() {
   const [drawing, setDrawing] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const load = () => geofenceAPI.list().then(r => {
-    const d = r.data?.data?.geofences ?? r.data?.data ?? r.data;
-    setGeofences(Array.isArray(d) ? d : []);
-  });
+  const [vioCounts, setVioCounts] = useState({});
+
+  const load = () => {
+    violationAPI.history({ limit: 500 }).then(r => {
+      const v = r.data?.data?.violations ?? r.data?.violations ?? [];
+      const counts = {};
+      (Array.isArray(v) ? v : []).forEach(x => { counts[x.geofence_name] = (counts[x.geofence_name] || 0) + 1; });
+      setVioCounts(counts);
+    }).catch(() => {});
+    return geofenceAPI.list().then(r => {
+      const d = r.data?.data?.geofences ?? r.data?.data ?? r.data;
+      setGeofences(Array.isArray(d) ? d : []);
+    });
+  };
 
   useEffect(() => { load(); }, []);
 
@@ -218,6 +228,9 @@ export default function Geofences() {
                     <div style={{ fontSize:"0.82rem", fontWeight:600, color:"var(--text-1)", fontFamily:"Space Grotesk", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{g.name}</div>
                     <div style={{ fontSize:"0.65rem", color:"var(--text-3)", marginTop:2 }}>{g.coordinates?.length||0} vertices</div>
                   </div>
+                  {vioCounts[g.name] > 0 && (
+                    <span style={{ flexShrink:0, minWidth:18, textAlign:"center", padding:"1px 6px", borderRadius:10, background:"#ef4444", color:"#fff", fontSize:"0.62rem", fontWeight:700 }}>{vioCounts[g.name]}</span>
+                  )}
                   <span className={`badge ${CAT_COLOR[g.category]||"badge-slate"}`} style={{ flexShrink:0 }}>{g.category}</span>
                 </div>
               );

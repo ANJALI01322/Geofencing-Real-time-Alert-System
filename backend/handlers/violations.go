@@ -138,6 +138,30 @@ func (h *Handler) GetViolations(w http.ResponseWriter, r *http.Request) {
 	}, start)
 }
 
+// GetViolationStats handles GET /violations/stats
+func (h *Handler) GetViolationStats(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
+	rows, err := h.DB.Query(`SELECT event_type, COUNT(*) as count FROM violations GROUP BY event_type`)
+	if err != nil {
+		h.respondError(w, http.StatusInternalServerError, "Failed to fetch violation stats", start)
+		return
+	}
+	defer rows.Close()
+
+	stats := map[string]int{"entry": 0, "exit": 0}
+	for rows.Next() {
+		var eventType string
+		var count int
+		if err := rows.Scan(&eventType, &count); err != nil {
+			continue
+		}
+		stats[eventType] = count
+	}
+
+	h.respond(w, http.StatusOK, stats, start)
+}
+
 // helper: check if null string
 func nullStrScan(ns sql.NullString) *string {
 	if ns.Valid {

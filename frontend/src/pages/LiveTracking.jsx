@@ -105,6 +105,13 @@ export default function LiveTracking() {
               [ev.vehicle_id]: { lat: ev.latitude, lng: ev.longitude },
             }));
           }
+          if (ev.event_type) {
+            const vid = ev.vehicle?.vehicle_number || ev.vehicle?.vehicle_id || ev.vehicle_id;
+            const gname = ev.geofence?.geofence_name || ev.geofence_name;
+            const msg = `${vid} ${ev.event_type === "entry" ? "entered" : "exited"} ${gname}`;
+            if (ev.event_type === "entry") toast.success(msg);
+            else if (ev.event_type === "exit") toast.error(msg);
+          }
         } catch {}
       };
       ws.onclose = () => { setWsStatus("reconnecting"); setTimeout(connect, 3000); };

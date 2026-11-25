@@ -69,6 +69,7 @@ func main() {
 
 	// Violation history
 	r.HandleFunc("/violations/history", h.GetViolations).Methods("GET", "OPTIONS")
+	r.HandleFunc("/violations/stats",   h.GetViolationStats).Methods("GET", "OPTIONS")
 
 	// === WebSocket Endpoint ===
 	r.HandleFunc("/ws/alerts", hub.ServeWS)

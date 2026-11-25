@@ -181,6 +181,12 @@ export default function Dashboard({alertHistory}){
         <StatCard icon={AlertTriangle} label="Violations"      value={stats.alerts}    sub="Total recorded events"              accent="red"   trend="All time"/>
       </div>
 
+      <div style={{fontSize:"0.78rem",fontWeight:700,marginBottom:20}}>
+        <span style={{color:"#16A34A"}}>Entry: {recentV.filter(v=>v.event_type==="entry").length}</span>
+        <span style={{color:"#9CA3AF"}}> | </span>
+        <span style={{color:"#DC2626"}}>Exit: {recentV.filter(v=>v.event_type==="exit").length}</span>
+      </div>
+
       <div style={{display:"flex",alignItems:"center",padding:"10px 18px",borderRadius:10,background:"#FFFFFF",border:"1px solid #E5E7EB",marginBottom:20,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
         {[
           {icon:CheckCircle2,label:"System",value:"Operational",color:"#16A34A"},

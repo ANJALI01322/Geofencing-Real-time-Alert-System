@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { vehicleAPI, geofenceAPI, violationAPI } from "../api";
 import {
   AlertOctagon, ArrowUpRight, ArrowDownRight, Filter,
-  RefreshCw, Clock, MapPin, Car, Shield, TrendingUp
+  RefreshCw, Clock, MapPin, Car, Shield, TrendingUp, Download
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -51,6 +51,18 @@ export default function Violations() {
   const totalExit  = violations.filter(v => v.event_type === "exit").length;
   const entryPct   = violations.length > 0 ? Math.round((totalEntry / violations.length) * 100) : 0;
 
+  const exportCSV = () => {
+    const cols = ["timestamp", "vehicle_number", "geofence_name", "event_type"];
+    const esc = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
+    const csv = [cols.join(","), ...violations.map(v => cols.map(c => esc(v[c])).join(","))].join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "violations.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const sel = {
     fontFamily: "'Inter', sans-serif",
     fontSize: "0.82rem",
@@ -87,6 +99,10 @@ export default function Violations() {
               <Clock size={12} /> Last updated {format(lastRefresh, "HH:mm:ss")}
             </span>
           )}
+          <button onClick={exportCSV} disabled={violations.length === 0} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#fff", color: "#374151", fontSize: "0.82rem", fontWeight: 500, cursor: violations.length === 0 ? "default" : "pointer", fontFamily: "'Inter', sans-serif" }}>
+            <Download size={13} />
+            Export CSV
+          </button>
           <button onClick={load} disabled={loading} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#fff", color: "#374151", fontSize: "0.82rem", fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
             <RefreshCw size={13} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
             Refresh
