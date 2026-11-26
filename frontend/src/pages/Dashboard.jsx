@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { vehicleAPI, geofenceAPI, violationAPI } from "../api";
+import { useAlertSocket } from "../context/AlertSocketContext";
+import ErrorState from "../components/ErrorState";
 import {
   Truck, AlertTriangle, Activity,
   ArrowUpRight, ArrowDownLeft,
-  Clock, Satellite, Zap, RefreshCw, TrendingUp, Shield, CheckCircle2
+  Satellite, Zap, RefreshCw, TrendingUp, Shield
 } from "lucide-react";
 
-function StatCard({ icon: Icon, label, value, sub, accent, trend }) {
+function StatCard({ icon: Icon, label, value, sub, accent, trend, loading }) {
   const C = {
     blue:  { bg:"#EFF6FF",icon:"#2563EB",text:"#1D4ED8",bar:"#3B82F6",w:72 },
     green: { bg:"#F0FDF4",icon:"#16A34A",text:"#15803D",bar:"#22C55E",w:58 },
@@ -18,8 +20,10 @@ function StatCard({ icon: Icon, label, value, sub, accent, trend }) {
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
         <div>
           <p className="gt-stat-label">{label}</p>
-          <p className="gt-stat-value fade-num">{value ?? "0"}</p>
-          {sub && <p style={{fontSize:"0.72rem",color:"#94A3B8",marginTop:8}}>{sub}</p>}
+          {loading
+            ? <span className="skeleton" style={{display:"block",width:64,height:34}}/>
+            : <p className="gt-stat-value fade-num">{value ?? "0"}</p>}
+          {sub && <p style={{fontSize:"0.72rem",color:"var(--text-faint)",marginTop:8}}>{sub}</p>}
         </div>
         <div style={{width:44,height:44,borderRadius:10,background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
           <Icon size={20} color={C.icon} strokeWidth={2}/>
@@ -48,21 +52,21 @@ function Badge({type}){
 function ViolationRow({v}){
   const ts=v.timestamp||v.triggered_at;
   return <div style={{display:"grid",gridTemplateColumns:"90px 1fr 1fr 90px",gap:12,alignItems:"center",
-    padding:"11px 20px",borderBottom:"1px solid #F1F3F6",fontSize:13,transition:"background 0.18s"}}
+    padding:"11px 20px",borderBottom:"1px solid var(--border-soft)",fontSize:13,transition:"background 0.18s"}}
     onMouseEnter={e=>e.currentTarget.style.background="#F8FAFC"}
     onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
     <Badge type={v.event_type}/>
-    <span style={{color:"#0F172A",fontWeight:600,fontFamily:"var(--font-mono)",fontSize:12.5,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+    <span style={{color:"var(--text)",fontWeight:600,fontFamily:"var(--font-mono)",fontSize:12.5,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
       {v.vehicle_number||v.vehicle_id||"Unknown"}
     </span>
-    <span style={{color:"#6B7280",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+    <span style={{color:"var(--text-muted)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
       {v.geofence_name||v.zone_name||v.geofence?.geofence_name||v.geofence?.name||(v.event_type==="speed_violation"?"Speed limit exceeded":"\u2014")}
     </span>
     <div style={{textAlign:"right"}}>
-      <div style={{color:"#334155",fontFamily:"JetBrains Mono,monospace",fontSize:12}}>
+      <div style={{color:"var(--text-2)",fontFamily:"JetBrains Mono,monospace",fontSize:12}}>
         {ts?new Date(ts).toLocaleTimeString("en-GB",{hour12:false}):"\u2014"}
       </div>
-      <div style={{color:"#9CA3AF",fontSize:"0.6rem"}}>
+      <div style={{color:"var(--text-faint)",fontSize:"0.6rem"}}>
         {ts?new Date(ts).toLocaleDateString("en-GB",{day:"2-digit",month:"short"}):""}
       </div>
     </div>
@@ -78,19 +82,19 @@ function LiveAlertRow({a}){
       :(lat!=null&&lng!=null?`${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}`:"\u2014"));
   const when=new Date(a.timestamp||Date.now());
   return <div style={{display:"flex",alignItems:"center",gap:12,padding:"11px 20px",
-    borderBottom:"1px solid #F3F4F6",fontSize:"0.78rem",transition:"background 0.1s"}}
+    borderBottom:"1px solid var(--border-soft)",fontSize:"0.78rem",transition:"background 0.1s"}}
     onMouseEnter={e=>e.currentTarget.style.background="#F9FAFB"}
     onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
     <Badge type={a.event_type}/>
     <div style={{flex:1,minWidth:0}}>
-      <div style={{color:"#111827",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+      <div style={{color:"var(--text)",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
         {name}
       </div>
-      <div style={{color:"#9CA3AF",fontSize:"0.65rem",fontFamily:"JetBrains Mono,monospace"}}>
+      <div style={{color:"var(--text-faint)",fontSize:"0.65rem",fontFamily:"JetBrains Mono,monospace"}}>
         {place}
       </div>
     </div>
-    <span style={{color:"#9CA3AF",fontSize:"0.65rem",fontFamily:"JetBrains Mono,monospace",flexShrink:0}}>
+    <span style={{color:"var(--text-faint)",fontSize:"0.65rem",fontFamily:"JetBrains Mono,monospace",flexShrink:0}}>
       {when.toLocaleTimeString("en-GB",{hour12:false})}
     </span>
   </div>;
@@ -98,10 +102,10 @@ function LiveAlertRow({a}){
 
 function PanelHeader({icon:Icon,title,iconColor,badge}){
   return <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-    padding:"14px 20px",borderBottom:"1px solid #F3F4F6",background:"#FAFAFA",borderRadius:"12px 12px 0 0"}}>
+    padding:"14px 20px",borderBottom:"1px solid var(--border-soft)",background:"var(--bg-subtle)",borderRadius:"12px 12px 0 0"}}>
     <div style={{display:"flex",alignItems:"center",gap:8}}>
       <Icon size={15} color={iconColor||"#6B7280"} strokeWidth={2}/>
-      <span style={{fontSize:"0.78rem",fontWeight:700,color:"#374151",letterSpacing:"0.02em"}}>{title}</span>
+      <span style={{fontSize:"0.78rem",fontWeight:700,color:"var(--text-2)",letterSpacing:"0.02em"}}>{title}</span>
     </div>
     {badge}
   </div>;
@@ -109,11 +113,11 @@ function PanelHeader({icon:Icon,title,iconColor,badge}){
 
 function Empty({icon:Icon,title,sub}){
   return <div style={{textAlign:"center",padding:"48px 24px"}}>
-    <div style={{width:48,height:48,borderRadius:12,background:"#F3F4F6",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px"}}>
+    <div style={{width:48,height:48,borderRadius:12,background:"var(--surface-2)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px"}}>
       <Icon size={22} color="#9CA3AF"/>
     </div>
-    <div style={{fontSize:"0.82rem",fontWeight:600,color:"#6B7280"}}>{title}</div>
-    <div style={{fontSize:"0.72rem",color:"#9CA3AF",marginTop:4}}>{sub}</div>
+    <div style={{fontSize:"0.82rem",fontWeight:600,color:"var(--text-muted)"}}>{title}</div>
+    <div style={{fontSize:"0.72rem",color:"var(--text-faint)",marginTop:4}}>{sub}</div>
   </div>;
 }
 
@@ -122,6 +126,8 @@ export default function Dashboard({alertHistory}){
   const [recentV,setRecentV]=useState([]);
   const [evStats,setEvStats]=useState({entry:0,exit:0,speed:0});
   const [loading,setLoading]=useState(true);
+  const [error,setError]=useState(false);
+  const {status}=useAlertSocket();
   const [lastRefresh,setLastRefresh]=useState(null);
   const [refreshing,setRefreshing]=useState(false);
 
@@ -147,7 +153,8 @@ export default function Dashboard({alertHistory}){
       // Violations card = stats total (entry + exit + speed), not the loaded list length
       setStats({vehicles:vehicles.length,active,geofences:geofences.length,alerts:entry+exit+speed});
       setLastRefresh(new Date());
-    }catch(e){console.error("Dashboard fetch",e);}
+      setError(false);
+    }catch{setError(true);}
     finally{setLoading(false);setRefreshing(false);}
   },[]);
 
@@ -155,9 +162,15 @@ export default function Dashboard({alertHistory}){
   useEffect(()=>{const t=setInterval(()=>fetchData(true),10000);return()=>clearInterval(t);},[fetchData]);
 
   const liveAlerts=alertHistory||[];
+  const SOCKET_UI={
+    connected:{color:"#2563EB",label:"Connected",title:"Listening for geofence events",sub:"WebSocket connected \u2014 alerts appear here in real time"},
+    connecting:{color:"#D97706",label:"Connecting",title:"Connecting to alert stream\u2026",sub:"Establishing the real-time connection"},
+    disconnected:{color:"#DC2626",label:"Offline",title:"Alert stream offline",sub:"Reconnecting automatically \u2014 live alerts resume when it is back"},
+  };
+  const sui=SOCKET_UI[status]||SOCKET_UI.connecting;
 
   return(
-    <div style={{padding:"28px 32px",minHeight:"100%",background:"#F8FAFC",fontFamily:"Inter,system-ui,sans-serif"}}>
+    <div style={{padding:"28px 32px",minHeight:"100%",background:"var(--bg-subtle)",fontFamily:"Inter,system-ui,sans-serif"}}>
       <div style={{height:3,background:"linear-gradient(90deg,#3B82F6,#22C55E)",margin:"-28px -32px 25px"}}/>
 
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:28}}>
@@ -166,24 +179,25 @@ export default function Dashboard({alertHistory}){
             <Truck size={20} color="#2563EB" strokeWidth={2}/>
           </div>
           <div>
-            <h1 style={{fontSize:"1.35rem",fontWeight:800,color:"#111827",letterSpacing:"-0.02em",lineHeight:1.1}}>Fleet Overview</h1>
-            <p style={{fontSize:"0.78rem",color:"#6B7280",marginTop:2}}>Real-time vehicle monitoring &amp; geofence intelligence</p>
+            <h1 style={{fontSize:"1.35rem",fontWeight:800,color:"var(--text)",letterSpacing:"-0.02em",lineHeight:1.1}}>Fleet Overview</h1>
+            <p style={{fontSize:"0.78rem",color:"var(--text-muted)",marginTop:2}}>Real-time vehicle monitoring &amp; geofence intelligence</p>
           </div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <button onClick={()=>fetchData(true)} disabled={refreshing}
-            style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:8,background:"#FFFFFF",border:"1px solid #E5E7EB",cursor:refreshing?"default":"pointer",color:"#374151",fontSize:"0.72rem",fontWeight:600}}>
+            style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:8,background:"var(--surface)",border:"1px solid var(--border)",cursor:refreshing?"default":"pointer",color:"var(--text-2)",fontSize:"0.72rem",fontWeight:600}}>
             <RefreshCw size={12} color={refreshing?"#3B82F6":"#6B7280"} style={{animation:refreshing?"spin 1s linear infinite":"none"}}/>
             {lastRefresh?lastRefresh.toLocaleTimeString("en-GB",{hour12:false,hour:"2-digit",minute:"2-digit"}):"Refresh"}
           </button>
         </div>
       </div>
 
+      {error&&!lastRefresh?<div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--r-lg)"}}><ErrorState onRetry={()=>fetchData()}/></div>:<>
       <div className="stagger gt-grid-4" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,marginBottom:20}}>
-        <StatCard icon={Truck}         label="Total Vehicles"  value={stats.vehicles}  sub={`${stats.active} with active GPS`} accent="blue"  trend="Fleet size"/>
-        <StatCard icon={Satellite}     label="Active Tracking" value={stats.active}    sub="Location updated"                   accent="green" trend="GPS online"/>
-        <StatCard icon={Shield}        label="Geofence Zones"  value={stats.geofences} sub="Monitored areas"                    accent="amber" trend="Zones configured"/>
-        <StatCard icon={AlertTriangle} label="Violations"      value={stats.alerts}    sub="Total recorded events"              accent="red"   trend="All time"/>
+        <StatCard loading={loading} icon={Truck}         label="Total Vehicles"  value={stats.vehicles}  sub={`${stats.active} with active GPS`} accent="blue"  trend="Fleet size"/>
+        <StatCard loading={loading} icon={Satellite}     label="Active Tracking" value={stats.active}    sub="Location updated"                   accent="green" trend="GPS online"/>
+        <StatCard loading={loading} icon={Shield}        label="Geofence Zones"  value={stats.geofences} sub="Monitored areas"                    accent="amber" trend="Zones configured"/>
+        <StatCard loading={loading} icon={AlertTriangle} label="Violations"      value={stats.alerts}    sub="Total recorded events"              accent="red"   trend="All time"/>
       </div>
 
       <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--r-lg)",boxShadow:"var(--shadow-sm)",padding:"16px 20px",marginBottom:20}}>
@@ -204,7 +218,7 @@ export default function Dashboard({alertHistory}){
       <div style={{display:"flex",alignItems:"center",flexWrap:"wrap",gap:8,marginBottom:20}}>
         {[
           {label:"System",value:"Operational",color:"#16A34A"},
-          {label:"WebSocket",value:liveAlerts.length>0?"Connected":"Listening",color:"#2563EB"},
+          {label:"WebSocket",value:sui.label,color:sui.color},
           {label:"Alert Engine",value:"Active",color:"#D97706"},
           {label:"GPS Engine",value:stats.active>0?`${stats.active} tracking`:"Standby",color:"#7C3AED"},
         ].map((s,i)=>(
@@ -216,11 +230,11 @@ export default function Dashboard({alertHistory}){
       </div>
 
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-        <div style={{background:"#FFFFFF",border:"1px solid #E5E7EB",borderRadius:12,boxShadow:"0 1px 3px rgba(0,0,0,0.04)",overflow:"hidden"}}>
+        <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:12,boxShadow:"0 1px 3px rgba(0,0,0,0.04)",overflow:"hidden"}}>
           <PanelHeader icon={AlertTriangle} title="Violation Log" iconColor="#D97706"
             badge={<span style={{padding:"3px 10px",borderRadius:20,background:"#FFF7ED",border:"1px solid #FDE68A",fontSize:"0.65rem",fontWeight:700,color:"#B45309"}}>{recentV.length} events</span>}/>
-          <div style={{display:"grid",gridTemplateColumns:"90px 1fr 1fr 90px",gap:12,padding:"7px 20px",background:"#F9FAFB",borderBottom:"1px solid #F3F4F6"}}>
-            {["Event","Vehicle","Zone","Time"].map(h=><span key={h} style={{fontSize:"0.6rem",fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.1em"}}>{h}</span>)}
+          <div style={{display:"grid",gridTemplateColumns:"90px 1fr 1fr 90px",gap:12,padding:"7px 20px",background:"var(--bg-subtle)",borderBottom:"1px solid var(--border-soft)"}}>
+            {["Event","Vehicle","Zone","Time"].map(h=><span key={h} style={{fontSize:"0.6rem",fontWeight:700,color:"var(--text-faint)",textTransform:"uppercase",letterSpacing:"0.1em"}}>{h}</span>)}
           </div>
           <div style={{maxHeight:320,overflowY:"auto"}}>
             {loading?[1,2,3,4].map(i=><div key={i} className="skeleton" style={{height:34,margin:"10px 20px"}}/>)
@@ -229,32 +243,33 @@ export default function Dashboard({alertHistory}){
           </div>
         </div>
 
-        <div style={{background:"#FFFFFF",border:"1px solid #E5E7EB",borderRadius:12,boxShadow:"0 1px 3px rgba(0,0,0,0.04)",overflow:"hidden"}}>
+        <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:12,boxShadow:"0 1px 3px rgba(0,0,0,0.04)",overflow:"hidden"}}>
           <PanelHeader icon={Zap} title="Live Alert Feed" iconColor="#2563EB"
             badge={<div style={{display:"flex",alignItems:"center",gap:7,padding:"3px 10px",borderRadius:20,background:"#EFF6FF",border:"1px solid #BFDBFE"}}>
               <span className="live-dot-blue"/>
               <span style={{fontSize:"0.65rem",fontWeight:700,color:"#2563EB"}}>WebSocket</span>
             </div>}/>
-          <div style={{display:"grid",gridTemplateColumns:"90px 1fr auto",gap:12,padding:"7px 20px",background:"#F9FAFB",borderBottom:"1px solid #F3F4F6"}}>
-            {["Event","Details","Time"].map(h=><span key={h} style={{fontSize:"0.6rem",fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.1em"}}>{h}</span>)}
+          <div style={{display:"grid",gridTemplateColumns:"90px 1fr auto",gap:12,padding:"7px 20px",background:"var(--bg-subtle)",borderBottom:"1px solid var(--border-soft)"}}>
+            {["Event","Details","Time"].map(h=><span key={h} style={{fontSize:"0.6rem",fontWeight:700,color:"var(--text-faint)",textTransform:"uppercase",letterSpacing:"0.1em"}}>{h}</span>)}
           </div>
           <div style={{maxHeight:320,overflowY:"auto"}}>
             {liveAlerts.length>0
               ?liveAlerts.slice(0,20).map((a,i)=><LiveAlertRow key={i} a={a}/>)
               :<div style={{textAlign:"center",padding:"48px 24px"}}>
-                <div className="listen-ring">
+                <div className={status==="connected"?"listen-ring":undefined} style={status==="connected"?undefined:{width:64,height:64,margin:"0 auto 16px",display:"flex",alignItems:"center",justifyContent:"center"}}>
                   <div style={{width:48,height:48,borderRadius:"50%",background:"#EFF6FF",border:"1px solid #BFDBFE",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",zIndex:1}}>
                     <Satellite size={22} color="#2563EB"/>
                   </div>
                 </div>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,fontSize:"0.85rem",fontWeight:700,color:"#2563EB"}}>
-                  <span className="blink-blue"/>Listening for geofence events
+                <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,fontSize:"0.85rem",fontWeight:700,color:sui.color}}>
+                  <span className={status==="connected"?"blink-blue":undefined} style={status==="connected"?undefined:{display:"inline-block",width:7,height:7,borderRadius:"50%",background:sui.color}}/>{sui.title}
                 </div>
-                <div style={{fontSize:"0.72rem",color:"#9CA3AF",marginTop:6}}>WebSocket connected — alerts appear here in real time</div>
+                <div style={{fontSize:"0.72rem",color:"var(--text-faint)",marginTop:6}}>{sui.sub}</div>
               </div>}
           </div>
         </div>
       </div>
+      </>}
     </div>
   );
 }

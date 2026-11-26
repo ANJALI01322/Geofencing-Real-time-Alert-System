@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import EmptyState from "../components/EmptyState";
+import ErrorState from "../components/ErrorState";
 
 export default function Violations() {
   const [violations, setViolations] = useState([]);
@@ -15,6 +16,7 @@ export default function Violations() {
   const [loading, setLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(null);
   const [stats, setStats] = useState(null);
+  const [error, setError] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -27,8 +29,9 @@ export default function Violations() {
         const d = r.data?.data?.violations ?? r.data?.violations ?? r.data?.data ?? r.data;
         setViolations(Array.isArray(d) ? d : []);
         setLastRefresh(new Date());
+        setError(false);
       })
-      .catch(() => setViolations([]))
+      .catch(() => { setViolations([]); setError(true); })
       .finally(() => setLoading(false));
     // Single source of truth for totals: /violations/stats
     violationAPI.stats()
@@ -71,6 +74,8 @@ export default function Violations() {
 
   // Filtering is done by the "Filter Events" card (server side); CSV exports what is shown
   const filtered = violations;
+  const pending = loading && !lastRefresh && !stats;
+  const statSkeleton = <span className="skeleton" style={{ display: "block", width: 56, height: 34 }} />;
 
   const exportCSV = () => {
     const cols = ["timestamp", "vehicle_number", "geofence_name", "event_type"];
@@ -88,10 +93,10 @@ export default function Violations() {
     fontFamily: "'Inter', sans-serif",
     fontSize: "0.82rem",
     padding: "9px 12px",
-    border: "1.5px solid #E5E7EB",
+    border: "1.5px solid var(--border)",
     borderRadius: 8,
-    background: "#fff",
-    color: "#374151",
+    background: "var(--surface)",
+    color: "var(--text-2)",
     outline: "none",
     cursor: "pointer",
     appearance: "none",
@@ -102,7 +107,7 @@ export default function Violations() {
   };
 
   return (
-    <div style={{ padding: "28px 32px", minHeight: "100vh", background: "#F8FAFC", fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-subtle)", fontFamily: "'Inter', sans-serif" }}>
       <div style={{ height: 3, background: "linear-gradient(90deg,#3B82F6,#22C55E)", margin: "-28px -32px 25px" }} />
       
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
@@ -111,21 +116,21 @@ export default function Violations() {
             <AlertOctagon size={20} color="#DC2626" />
           </div>
           <div>
-            <h1 style={{ fontSize: "1.35rem", fontWeight: 700, color: "#111827", margin: 0 }}>Violation Log</h1>
-            <p style={{ fontSize: "0.75rem", color: "#6B7280", margin: 0, marginTop: 2 }}>Geofence boundary crossing events · Auto-refresh every 5s</p>
+            <h1 style={{ fontSize: "1.35rem", fontWeight: 700, color: "var(--text)", margin: 0 }}>Violation Log</h1>
+            <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: 0, marginTop: 2 }}>Geofence boundary crossing events · Auto-refresh every 5s</p>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {lastRefresh && (
-            <span style={{ fontSize: "0.73rem", color: "#9CA3AF", display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: "0.73rem", color: "var(--text-faint)", display: "flex", alignItems: "center", gap: 4 }}>
               <Clock size={12} /> Last updated {format(lastRefresh, "HH:mm:ss")}
             </span>
           )}
-          <button onClick={exportCSV} disabled={filtered.length === 0} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#fff", color: "#374151", fontSize: "0.82rem", fontWeight: 500, cursor: filtered.length === 0 ? "default" : "pointer", fontFamily: "'Inter', sans-serif" }}>
+          <button onClick={exportCSV} disabled={filtered.length === 0} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1.5px solid var(--border)", background: "var(--surface)", color: "var(--text-2)", fontSize: "0.82rem", fontWeight: 500, cursor: filtered.length === 0 ? "default" : "pointer", fontFamily: "'Inter', sans-serif" }}>
             <Download size={13} />
             Export CSV
           </button>
-          <button onClick={load} disabled={loading} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#fff", color: "#374151", fontSize: "0.82rem", fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+          <button onClick={load} disabled={loading} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1.5px solid var(--border)", background: "var(--surface)", color: "var(--text-2)", fontSize: "0.82rem", fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
             <RefreshCw size={13} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
             Refresh
           </button>
@@ -135,9 +140,9 @@ export default function Violations() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
         <div className="gt-stat" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>TOTAL EVENTS</div>
-            <div style={{ fontSize: "2.1rem", fontWeight: 700, letterSpacing: "-0.03em", color: "#111827", lineHeight: 1 }}>{totalAll}</div>
-            <div style={{ fontSize: "0.72rem", color: "#9CA3AF", marginTop: 7 }}>All recorded events</div>
+            <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>TOTAL EVENTS</div>
+            <div style={{ fontSize: "2.1rem", fontWeight: 700, letterSpacing: "-0.03em", color: "var(--text)", lineHeight: 1 }}>{pending ? statSkeleton : totalAll}</div>
+            <div style={{ fontSize: "0.72rem", color: "var(--text-faint)", marginTop: 7 }}>All recorded events</div>
           </div>
           <div style={{ width: 54, height: 54, borderRadius: 14, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <TrendingUp size={24} color="#2563EB" />
@@ -146,9 +151,9 @@ export default function Violations() {
 
         <div className="gt-stat" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>ZONE ENTRIES</div>
-            <div style={{ fontSize: "2.1rem", fontWeight: 700, letterSpacing: "-0.03em", color: "#16A34A", lineHeight: 1 }}>{totalEntry}</div>
-            <div style={{ fontSize: "0.72rem", color: "#9CA3AF", marginTop: 7 }}><span style={{ color: "#22C55E", fontWeight: 700 }}>{entryPct}%</span> of total events</div>
+            <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>ZONE ENTRIES</div>
+            <div style={{ fontSize: "2.1rem", fontWeight: 700, letterSpacing: "-0.03em", color: "#16A34A", lineHeight: 1 }}>{pending ? statSkeleton : totalEntry}</div>
+            <div style={{ fontSize: "0.72rem", color: "var(--text-faint)", marginTop: 7 }}><span style={{ color: "#22C55E", fontWeight: 700 }}>{entryPct}%</span> of total events</div>
           </div>
           <div style={{ width: 54, height: 54, borderRadius: 14, background: "#F0FDF4", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <ArrowDownRight size={26} color="#22C55E" />
@@ -157,9 +162,9 @@ export default function Violations() {
 
         <div className="gt-stat" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>ZONE EXITS</div>
-            <div style={{ fontSize: "2.1rem", fontWeight: 700, letterSpacing: "-0.03em", color: "#DC2626", lineHeight: 1 }}>{totalExit}</div>
-            <div style={{ fontSize: "0.72rem", color: "#9CA3AF", marginTop: 7 }}><span style={{ color: "#EF4444", fontWeight: 700 }}>{exitPct}%</span> of total events</div>
+            <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>ZONE EXITS</div>
+            <div style={{ fontSize: "2.1rem", fontWeight: 700, letterSpacing: "-0.03em", color: "#DC2626", lineHeight: 1 }}>{pending ? statSkeleton : totalExit}</div>
+            <div style={{ fontSize: "0.72rem", color: "var(--text-faint)", marginTop: 7 }}><span style={{ color: "#EF4444", fontWeight: 700 }}>{exitPct}%</span> of total events</div>
           </div>
           <div style={{ width: 54, height: 54, borderRadius: 14, background: "#FFF1F2", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <ArrowUpRight size={26} color="#EF4444" />
@@ -167,31 +172,31 @@ export default function Violations() {
         </div>
       </div>
 
-      <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #E5E7EB", boxShadow: "0 1px 4px rgba(0,0,0,0.05)", marginBottom: 20 }}>
-        <div style={{ padding: "14px 20px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ background: "var(--surface)", borderRadius: 14, border: "1.5px solid var(--border)", boxShadow: "0 1px 4px rgba(0,0,0,0.05)", marginBottom: 20 }}>
+        <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border-soft)", display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 28, height: 28, borderRadius: 8, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Filter size={13} color="#2563EB" />
           </div>
-          <span style={{ fontSize: "0.88rem", fontWeight: 600, color: "#111827" }}>Filter Events</span>
-          <span style={{ fontSize: "0.73rem", color: "#9CA3AF", marginLeft: 2 }}>Narrow results by vehicle, zone, or type</span>
+          <span style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--text)" }}>Filter Events</span>
+          <span style={{ fontSize: "0.73rem", color: "var(--text-faint)", marginLeft: 2 }}>Narrow results by vehicle, zone, or type</span>
         </div>
         <div style={{ padding: "16px 20px", display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            <label style={{ fontSize: "0.68rem", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em" }}>Vehicle</label>
+            <label style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Vehicle</label>
             <select style={{ ...sel, minWidth: 200 }} value={filters.vehicle_id} onChange={e => setFilters(f => ({ ...f, vehicle_id: e.target.value }))}>
               <option value="">All Vehicles</option>
               {vehicles.map(v => <option key={v.vehicle_id || v.id} value={v.vehicle_id || v.id}>{v.vehicle_number} — {v.driver_name}</option>)}
             </select>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            <label style={{ fontSize: "0.68rem", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em" }}>Zone</label>
+            <label style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Zone</label>
             <select style={{ ...sel, minWidth: 180 }} value={filters.geofence_id} onChange={e => setFilters(f => ({ ...f, geofence_id: e.target.value }))}>
               <option value="">All Zones</option>
               {geofences.map(g => <option key={g.geofence_id || g.id} value={g.geofence_id || g.id}>{g.geofence_name || g.name}</option>)}
             </select>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            <label style={{ fontSize: "0.68rem", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em" }}>Event Type</label>
+            <label style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Event Type</label>
             <select style={{ ...sel, minWidth: 130 }} value={filters.event_type} onChange={e => setFilters(f => ({ ...f, event_type: e.target.value }))}>
               <option value="">All Events</option>
               <option value="entry">↓ Entry</option>
@@ -199,7 +204,7 @@ export default function Violations() {
             </select>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            <label style={{ fontSize: "0.68rem", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em" }}>Rows</label>
+            <label style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Rows</label>
             <select style={{ ...sel, minWidth: 100 }} value={filters.limit} onChange={e => setFilters(f => ({ ...f, limit: e.target.value }))}>
               <option value={25}>25 rows</option>
               <option value={50}>50 rows</option>
@@ -213,13 +218,13 @@ export default function Violations() {
         </div>
       </div>
 
-      <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #E5E7EB", boxShadow: "0 1px 4px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-        <div style={{ padding: "14px 20px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ background: "var(--surface)", borderRadius: 14, border: "1.5px solid var(--border)", boxShadow: "0 1px 4px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+        <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border-soft)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 28, height: 28, borderRadius: 8, background: "#FFF1F2", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <AlertOctagon size={13} color="#EF4444" />
             </div>
-            <span style={{ fontSize: "0.88rem", fontWeight: 600, color: "#111827" }}>Events</span>
+            <span style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--text)" }}>Events</span>
           </div>
           <span style={{ fontSize: "0.72rem", fontWeight: 700, color: violations.length > 0 ? "#DC2626" : "#6B7280", background: violations.length > 0 ? "#FEE2E2" : "#F3F4F6", padding: "3px 10px", borderRadius: 20, border: violations.length > 0 ? "1px solid #FCA5A5" : "1px solid #E5E7EB" }}>
             {filtered.length} records
@@ -230,6 +235,8 @@ export default function Violations() {
           <div style={{ padding: "12px 16px 16px" }}>
             {[1,2,3,4,5].map(i => <div key={i} className="skeleton" style={{ height: 52, marginBottom: 6 }} />)}
           </div>
+        ) : error && violations.length === 0 ? (
+          <ErrorState title="Couldn't load violations" onRetry={load} />
         ) : filtered.length === 0 ? (
           violations.length === 0 ? (
             <EmptyState good icon={Shield} title="No violations recorded" text="All vehicles are operating within geofence boundaries" />
@@ -240,16 +247,16 @@ export default function Violations() {
           <div style={{ overflowX: "auto" }}>
             <table className="dt">
               <thead>
-                <tr style={{ background: "#F9FAFB" }}>
+                <tr style={{ background: "var(--bg-subtle)" }}>
                   {["Event", "Vehicle", "Driver", "Zone", "Category", "Coordinates", "Timestamp"].map(h => (
-                    <th key={h} style={{ padding: "11px 16px", textAlign: "left", fontSize: "0.68rem", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "1px solid #E5E7EB", whiteSpace: "nowrap" }}>{h}</th>
+                    <th key={h} style={{ padding: "11px 16px", textAlign: "left", fontSize: "0.68rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "1px solid var(--border)", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((v, i) => (
                   <tr key={v.event_id || v.id || i}
-                    style={{ borderBottom: "1px solid #F3F4F6" }}
+                    style={{ borderBottom: "1px solid var(--border-soft)" }}
                     onMouseEnter={e => e.currentTarget.style.background = "#F9FAFB"}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                   >
@@ -264,14 +271,14 @@ export default function Violations() {
                         <div style={{ width: 30, height: 30, borderRadius: 8, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                           <Car size={14} color="#2563EB" />
                         </div>
-                        <span style={{ fontWeight: 700, color: "#111827", fontSize: "0.82rem", fontFamily: "monospace", letterSpacing: "0.03em" }}>{v.vehicle_number || "—"}</span>
+                        <span style={{ fontWeight: 700, color: "var(--text)", fontSize: "0.82rem", fontFamily: "monospace", letterSpacing: "0.03em" }}>{v.vehicle_number || "—"}</span>
                       </div>
                     </td>
-                    <td style={{ padding: "14px 16px" }}><span style={{ fontSize: "0.82rem", color: "#374151" }}>{v.driver_name || "—"}</span></td>
+                    <td style={{ padding: "14px 16px" }}><span style={{ fontSize: "0.82rem", color: "var(--text-2)" }}>{v.driver_name || "—"}</span></td>
                     <td style={{ padding: "14px 16px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <Shield size={12} color="#7C3AED" />
-                        <span style={{ fontSize: "0.82rem", color: "#374151", fontWeight: 500 }}>{v.geofence_name || "—"}</span>
+                        <span style={{ fontSize: "0.82rem", color: "var(--text-2)", fontWeight: 500 }}>{v.geofence_name || "—"}</span>
                       </div>
                     </td>
                     <td style={{ padding: "14px 16px" }}>
@@ -282,7 +289,7 @@ export default function Violations() {
                     <td style={{ padding: "14px 16px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                         <MapPin size={11} color="#9CA3AF" />
-                        <span style={{ fontSize: "0.73rem", color: "#6B7280", fontFamily: "monospace" }}>
+                        <span style={{ fontSize: "0.73rem", color: "var(--text-muted)", fontFamily: "monospace" }}>
                           {typeof v.latitude === "number" ? v.latitude.toFixed(5) : "—"},&nbsp;{typeof v.longitude === "number" ? v.longitude.toFixed(5) : "—"}
                         </span>
                       </div>
@@ -290,7 +297,7 @@ export default function Violations() {
                     <td style={{ padding: "14px 16px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                         <Clock size={11} color="#9CA3AF" />
-                        <span style={{ fontSize: "0.73rem", color: "#6B7280", fontFamily: "monospace" }}>
+                        <span style={{ fontSize: "0.73rem", color: "var(--text-muted)", fontFamily: "monospace" }}>
                           {v.timestamp ? format(new Date(v.timestamp), "dd MMM, HH:mm:ss") : "—"}
                         </span>
                       </div>
@@ -303,8 +310,8 @@ export default function Violations() {
         )}
 
         {violations.length > 0 && (
-          <div style={{ padding: "12px 20px", borderTop: "1px solid #F3F4F6", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FAFAFA" }}>
-            <span style={{ fontSize: "0.73rem", color: "#9CA3AF" }}>Showing {filtered.length} of {filters.limit} max rows</span>
+          <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border-soft)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-subtle)" }}>
+            <span style={{ fontSize: "0.73rem", color: "var(--text-faint)" }}>Showing {filtered.length} of {filters.limit} max rows</span>
             <div style={{ display: "flex", gap: 16 }}>
               <span style={{ fontSize: "0.73rem", color: "#16A34A", fontWeight: 700 }}>↓ {totalEntry} entries</span>
               <span style={{ fontSize: "0.73rem", color: "#DC2626", fontWeight: 700 }}>↑ {totalExit} exits</span>

@@ -19,6 +19,16 @@
   --danger: #DC2626;
   --violet: #7C3AED;
 
+  /* Neutral scale (themed) */
+  --surface-2: #F3F4F6;
+  --bg-subtle: #F8FAFC;
+  --border-soft: #F1F3F6;
+  --border-strong: #D1D5DB;
+  --text-faint: #9CA3AF;
+  --glass: rgba(255,255,255,.8);
+  --glass-strong: rgba(255,255,255,.92);
+  color-scheme: light;
+
   /* Radius */
   --r-sm: 6px;
   --r-md: 10px;
@@ -95,7 +105,7 @@ h1 { letter-spacing: -0.02em; }
 .fade-num { animation: fadeIn 420ms var(--ease) both; }
 
 .skeleton {
-  background: linear-gradient(90deg, #EEF1F5 25%, #F8FAFC 50%, #EEF1F5 75%);
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--bg-subtle) 50%, var(--surface-2) 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.4s linear infinite;
   border-radius: var(--r-md);
@@ -209,7 +219,7 @@ h1 { letter-spacing: -0.02em; }
   height: 64px; flex-shrink: 0; position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 0 24px;
-  background: rgba(255,255,255,.8);
+  background: var(--glass);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
 }
@@ -235,7 +245,7 @@ h1 { letter-spacing: -0.02em; }
   font-family: var(--font-mono); font-size: 12px; color: var(--text-2);
 }
 .gt-search { position: relative; }
-.gt-search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: #94A3B8; pointer-events: none; }
+.gt-search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-faint); pointer-events: none; }
 .gt-search input {
   width: 280px; padding-left: 34px !important;
 }
@@ -254,7 +264,7 @@ h1 { letter-spacing: -0.02em; }
   outline: none;
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
-.gt-content input::placeholder, .gt-header input::placeholder { color: #94A3B8; }
+.gt-content input::placeholder, .gt-header input::placeholder { color: var(--text-faint); }
 .gt-content input:focus, .gt-content select:focus, .gt-header input:focus {
   border-color: var(--primary) !important;
   box-shadow: 0 0 0 3px rgba(37,99,235,.15);
@@ -288,11 +298,11 @@ h1 { letter-spacing: -0.02em; }
 .gt-stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 .gt-stat-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
 .gt-stat-value { font-size: 2.1rem; font-weight: 700; color: var(--text); line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
-.gt-spark { height: 4px; border-radius: 4px; background: #EEF1F5; margin-top: 16px; overflow: hidden; }
+.gt-spark { height: 4px; border-radius: 4px; background: var(--surface-2); margin-top: 16px; overflow: hidden; }
 .gt-spark span { display: block; height: 100%; border-radius: 4px; opacity: .85; }
 
 /* Segmented bar */
-.gt-seg { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: #EEF1F5; }
+.gt-seg { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--surface-2); }
 .gt-seg > span { display: block; height: 100%; transition: width 400ms var(--ease); }
 
 /* Status pills (dashboard strip) */
@@ -308,7 +318,7 @@ h1 { letter-spacing: -0.02em; }
 .dt { width: 100%; border-collapse: collapse; font-size: 13px; }
 .dt thead th {
   position: sticky; top: 0; z-index: 1;
-  background: #F8FAFC;
+  background: var(--bg-subtle);
   padding: 10px 16px !important;
   font-size: 11px !important; font-weight: 600 !important; letter-spacing: .06em;
   color: var(--text-muted) !important;
@@ -316,9 +326,9 @@ h1 { letter-spacing: -0.02em; }
   border-bottom: 1px solid var(--border) !important;
   white-space: nowrap;
 }
-.dt tbody td { padding: 12px 16px !important; font-size: 13px !important; border-bottom: 1px solid #F1F3F6; color: var(--text-2); }
+.dt tbody td { padding: 12px 16px !important; font-size: 13px !important; border-bottom: 1px solid var(--border-soft); color: var(--text-2); }
 .dt tbody tr { transition: background var(--dur) var(--ease); }
-.dt tbody tr:hover { background: #F8FAFC !important; }
+.dt tbody tr:hover { background: var(--bg-subtle) !important; }
 .dt tbody tr:last-child td { border-bottom: none; }
 
 /* Empty state */
@@ -326,7 +336,7 @@ h1 { letter-spacing: -0.02em; }
 .gt-empty-icon {
   width: 56px; height: 56px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;
-  background: #F1F5F9; color: #94A3B8;
+  background: var(--surface-2); color: var(--text-faint);
 }
 .gt-empty h3 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
 .gt-empty p { font-size: 13px; color: var(--text-muted); max-width: 360px; margin: 0 auto; line-height: 1.6; }
@@ -343,14 +353,14 @@ h1 { letter-spacing: -0.02em; }
   content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary);
   transform: scaleX(0); transform-origin: left; transition: transform var(--dur) var(--ease);
 }
-.zone-row:hover { background: #F8FAFC; }
+.zone-row:hover { background: var(--bg-subtle); }
 .zone-row:hover::before { transform: scaleX(1); }
 
 /* Floating map card */
 .gt-float {
   position: absolute; top: 12px; right: 12px; z-index: 1000;
   padding: 8px 12px; border-radius: var(--r-md);
-  background: rgba(255,255,255,.92); border: 1px solid var(--border);
+  background: var(--glass-strong); border: 1px solid var(--border);
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   box-shadow: var(--shadow-md);
   font-size: 12px; font-weight: 600; color: var(--text);
@@ -389,3 +399,55 @@ h1 { letter-spacing: -0.02em; }
 }
 @media (max-width: 1100px) { .gt-grid-4 { grid-template-columns: repeat(2, 1fr) !important; } }
 @media (max-width: 560px) { .gt-grid-4 { grid-template-columns: 1fr !important; } }
+
+/* ── Socket status: amber while connecting ── */
+.gt-pill.warn { background: rgba(217,119,6,.16); color: #FBBF24; }
+.gt-pill.warn .gt-pill-dot { background: #F59E0B; }
+.gt-live.warn { background: #FFFBEB; color: var(--warning); border-color: #FDE68A; }
+
+/* ═══ Dark theme ═══ (applied via <html data-theme="dark">) */
+[data-theme="dark"] {
+  --bg: #0B1220;
+  --surface: #111A2B;
+  --surface-2: #182236;
+  --bg-subtle: #0F1829;
+  --border: #1F2A3C;
+  --border-soft: #19243A;
+  --border-strong: #2A3850;
+  --text: #E5E9F0;
+  --text-2: #CBD5E1;
+  --text-muted: #94A3B8;
+  --text-faint: #64748B;
+  --primary: #3B82F6;
+  --glass: rgba(11,18,32,.8);
+  --glass-strong: rgba(17,26,43,.92);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.35);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.40);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,.50);
+  --bg-hover: #182236;
+  color-scheme: dark;
+}
+[data-theme="dark"] .gt-sb { background: #070D18; }
+[data-theme="dark"] .gt-live { background: rgba(22,163,74,.14); border-color: rgba(22,163,74,.35); color: #4ADE80; }
+[data-theme="dark"] .gt-live.off { background: rgba(220,38,38,.14); border-color: rgba(220,38,38,.35); color: #F87171; }
+[data-theme="dark"] .gt-live.warn { background: rgba(217,119,6,.16); border-color: rgba(217,119,6,.35); color: #FBBF24; }
+/* Darken the OpenStreetMap tiles so the map matches the theme */
+[data-theme="dark"] .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.75); }
+[data-theme="dark"] .leaflet-container { background: #0F1829; }
+[data-theme="dark"] ::-webkit-scrollbar-track { background: var(--bg-subtle); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: var(--border-strong); }
+
+/* ── Theme toggle ── */
+.gt-theme-btn {
+  margin-left: auto; width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; border: none;
+  background: transparent; color: #94A3B8; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.gt-theme-btn:hover { background: rgba(148,163,184,.12); color: #F1F5F9; }
+.gt-theme-header {
+  display: none; width: 32px; height: 32px; border-radius: var(--r-md);
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); cursor: pointer;
+  align-items: center; justify-content: center;
+}
+@media (max-width: 1024px) { .gt-theme-header { display: inline-flex; } }

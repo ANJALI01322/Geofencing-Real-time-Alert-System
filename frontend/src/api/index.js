@@ -1,17 +1,54 @@
 import axios from "axios";
+import toast from "react-hot-toast";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { "Content-Type": "application/json" },
-  timeout: 10000,
+  timeout: 30000, // Render's free tier can take ~30s to wake from sleep
 });
 
-// Response interceptor: unwrap the { data, time_ns } envelope
+// ── Resilience: retry idempotent GETs and tell the user what is happening ──
+const STATUS_TOAST_ID = "api-status";
+const MAX_RETRIES = 2;
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+let degraded = false;
+
 api.interceptors.response.use(
-  (res) => res,
-  (err) => Promise.reject(err)
+  (res) => {
+    if (degraded) {
+      degraded = false;
+      toast.dismiss(STATUS_TOAST_ID);
+    }
+    return res;
+  },
+  async (err) => {
+    const config = err.config;
+    const status = err.response?.status;
+    const noResponse = !err.response && err.code !== "ERR_CANCELED"; // network error / timeout / CORS
+    const serverError = status >= 500;
+    if (!config || !(noResponse || serverError)) return Promise.reject(err);
+
+    degraded = true;
+    config.__retries = config.__retries || 0;
+    const canRetry = config.method === "get" && config.__retries < MAX_RETRIES;
+
+    if (noResponse) {
+      toast.loading("Waking up server… this can take up to 30 seconds", { id: STATUS_TOAST_ID });
+    } else {
+      toast.error("Server unreachable, retrying…", { id: STATUS_TOAST_ID });
+    }
+
+    if (canRetry) {
+      config.__retries += 1;
+      await wait(2000 * config.__retries);
+      return api(config);
+    }
+
+    toast.error("Server unreachable. Please try again in a moment.", { id: STATUS_TOAST_ID, duration: 5000 });
+    return Promise.reject(err);
+  }
 );
 
 // ── Vehicles ──────────────────────────────────────────────────────────────────

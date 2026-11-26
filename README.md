@@ -1,198 +1,226 @@
-# 🌍 GeoTrack — Geofencing & Real-Time Vehicle Alert System
+# GeoTrack — Real-Time Geofencing & Fleet Alerts
 
-A production-grade full-stack application for real-time vehicle tracking, geofence management, and automated violation alerts — built for the **MapUp Full-Stack Developer Assessment**.
+[![CI](https://github.com/ANJALI01322/Geofencing-Real-time-Alert-System/actions/workflows/ci.yml/badge.svg)](https://github.com/ANJALI01322/Geofencing-Real-time-Alert-System/actions/workflows/ci.yml)
+![Go](https://img.shields.io/badge/Backend-Go-00ADD8?logo=go)
+![React](https://img.shields.io/badge/Frontend-React%2019-61DAFB?logo=react)
+![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-4169E1?logo=postgresql)
 
-![Tech Stack](https://img.shields.io/badge/Backend-Go-00ADD8?logo=go) ![React](https://img.shields.io/badge/Frontend-React-61DAFB?logo=react) ![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-4169E1?logo=postgresql) ![Docker](https://img.shields.io/badge/Deploy-Docker-2496ED?logo=docker)
+GeoTrack tracks vehicles on a live map, lets you draw polygon geofences, and raises
+real-time alerts when a vehicle **enters or exits** a zone or **exceeds the speed limit**.
+Alerts are stored in PostgreSQL and pushed to every open browser over a WebSocket.
 
----
+## Live demo
 
-## ✨ Features
-
-| Feature | Description |
+| Part | URL |
 |---|---|
-| 🚗 **Vehicle Management** | Add, track, and update vehicles with real-time GPS location |
-| 🗺️ **Geofence Builder** | Draw custom polygon geofences on an interactive Leaflet map |
-| ⚡ **Real-Time WebSocket** | Live vehicle position updates via WebSocket hub |
-| 🚨 **Violation Detection** | Ray-casting algorithm detects when vehicles enter/exit geofences |
-| 📊 **Dashboard** | Live stats — active vehicles, geofences, recent violations |
-| 🔔 **Alert Configuration** | Per-rule alerts with entry/exit/speed triggers |
-| 📜 **Violation History** | Filterable log of all geofence violations |
-| 🌐 **Live Tracking** | Real-time map showing all vehicles with location simulation |
+| Frontend (Vercel) | _add your Vercel deployment URL here_ |
+| API (Render) | https://geofencing-real-time-alert-system-h1vz.onrender.com |
+| API health check | https://geofencing-real-time-alert-system-h1vz.onrender.com/health |
 
----
+> The API runs on Render's free tier and sleeps when idle. The first request after a
+> pause can take ~30 seconds; the UI shows a "Waking up server…" message and retries.
 
-## 🏗️ Architecture
+## Features
 
-```
-┌─────────────────────────────────────┐
-│           React Frontend            │
-│  Vite + Tailwind + React-Leaflet    │
-│  Glassmorphism Dark UI              │
-└──────────────┬──────────────────────┘
-               │ HTTP REST + WebSocket
-┌──────────────▼──────────────────────┐
-│           Go Backend                │
-│  gorilla/mux + gorilla/websocket    │
-│  Ray-Casting Geofence Detection     │
-│  WebSocket Hub (real-time)          │
-└──────────────┬──────────────────────┘
-               │ lib/pq
-┌──────────────▼──────────────────────┐
-│          PostgreSQL 16              │
-│  JSONB polygon coordinates          │
-│  UUID primary keys                  │
-│  Auto-update triggers               │
-└─────────────────────────────────────┘
-```
+- **Live tracking map** — every vehicle on a Leaflet map, with a built-in GPS simulator and route playback.
+- **Geofence builder** — draw polygons by clicking on the map; zones are colour-coded by category.
+- **Entry / exit detection** — each GPS update is checked against every zone (ray casting).
+- **Speed violations** — Haversine speed between consecutive fixes, with GPS-jump filtering and a per-vehicle cooldown.
+- **Real-time alerts** — WebSocket push with live connection status and automatic reconnect.
+- **Alert rules** — choose which vehicle / zone / event combinations trigger live alerts.
+- **Violation log** — server-side filters, consistent totals from a single stats endpoint, CSV export.
+- **Fleet status** — vehicles ranked by number of violations.
+- **Production touches** — dark mode, error boundary, loading skeletons, request IDs and access logs,
+  graceful shutdown, DB-aware health check, unit tests and CI.
 
----
+## Architecture
 
-## 🚀 Quick Start
+```mermaid
+flowchart LR
+    subgraph Browser
+        UI[React + Vite SPA<br/>Leaflet map]
+    end
 
-### Prerequisites
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/Mac/Linux)
-- Git
+    subgraph Go API
+        R[REST handlers<br/>gorilla/mux]
+        GEO[Geofence engine<br/>ray casting + Haversine]
+        HUB[WebSocket hub<br/>gorilla/websocket]
+    end
 
-### 1. Clone the repository
-```bash
-git clone <your-repo-url>
-cd geotrack
+    DB[(PostgreSQL)]
+
+    UI -- "REST (JSON)" --> R
+    UI <-- "WebSocket /ws/alerts" --> HUB
+    R --> GEO
+    R <--> DB
+    GEO -- "violation rows" --> DB
+    GEO -- "alert events" --> HUB
 ```
 
-### 2. Start the backend (Go + PostgreSQL)
-```bash
-docker compose up --build -d
-```
+**Flow of a location update:** `POST /vehicles/location` → the previous position is read →
+the new position is stored → in the background the engine compares *previous vs current* position
+for every geofence (entry/exit) and computes speed → any violation is written to `violations`
+and broadcast to all WebSocket clients.
 
-The backend starts at `http://localhost:8080`. PostgreSQL runs internally — no host port needed.
+## Tech decisions
 
-### 3. Start the frontend
-```bash
-cd frontend
-npm install
-npm run dev
-```
+**Why Go.** The core work is many small concurrent requests (GPS pings) plus fan-out to WebSocket
+clients. Goroutines make "respond to the HTTP request now, run geofence checks in the background"
+trivial, the standard library covers HTTP/JSON/testing, and the result is a single small binary
+that is cheap to host.
 
-Frontend starts at `http://localhost:5173`.
+**Why WebSocket.** Alerts must reach the dashboard the moment they happen. Polling would add
+latency and waste requests; a WebSocket keeps one connection open and lets the server push.
+A central hub goroutine owns the client set and broadcasts each event. The frontend shares a
+single connection through a React context and reconnects with exponential backoff (1s → 15s).
 
-### 4. Open the app
-Navigate to [http://localhost:5173](http://localhost:5173)
+**Geofence algorithm.**
+- *Point in polygon* — a ray is cast from the point; an odd number of edge crossings means
+  the point is inside. Boundaries are half-open (min edges inside, max edges outside), so a
+  vehicle on a border is never both inside and outside. Works for concave shapes too.
+- *Entry / exit* — computed from two booleans: `!wasInside && isInside` = entry,
+  `wasInside && !isInside` = exit. No per-vehicle state needs to be stored; the previous point
+  comes from the `vehicle_locations` table.
+- *Speed* — Haversine great-circle distance ÷ time between fixes. Readings are ignored when the
+  fixes are < 2 s apart or the speed is > 250 km/h (GPS jumps), and a vehicle gets at most one
+  speed alert per 60 s.
 
----
+**PostgreSQL.** Relational data (vehicles, zones, rules, violations) with foreign keys and
+cascades; polygon coordinates are stored as JSONB.
 
-## 📡 API Endpoints
+## API
 
-### Vehicles
+All responses are wrapped as `{ "data": ..., "time_ns": "..." }`. Every response carries an
+`X-Request-ID` header (sent back if you provide one).
+
 | Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/vehicles` | List all vehicles |
-| `POST` | `/vehicles` | Create a vehicle |
-| `POST` | `/vehicles/location` | Update vehicle GPS location |
-| `GET` | `/vehicles/location/:id` | Get latest vehicle location |
-
-### Geofences
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/geofences` | List all geofences (optional `?category=`) |
+|---|---|---|
+| `GET` | `/health` | Service + database status — `{"status":"ok","db":"up"}` (503 if the DB is down) |
+| `GET` | `/vehicles` | List vehicles |
+| `POST` | `/vehicles` | Register a vehicle |
+| `POST` | `/vehicles/location` | Report a GPS fix; triggers geofence + speed checks |
+| `GET` | `/vehicles/location/{vehicle_id}` | Latest position, zones it is inside, recent history |
+| `GET` | `/geofences` | List geofences (optional `?category=`) |
 | `POST` | `/geofences` | Create a polygon geofence |
+| `POST` | `/alerts/configure` | Create an alert rule (`entry` / `exit` / `both`) |
+| `GET` | `/alerts` | List alert rules |
+| `GET` | `/violations/history` | Violation log (filters: `vehicle_id`, `geofence_id`, `event_type`, `start_date`, `end_date`, `limit` ≤ 500) |
+| `GET` | `/violations/stats` | Totals — `{"entry":N,"exit":N,"speed":N}` |
+| `WS` | `/ws/alerts` | Real-time alert stream |
 
-### Alerts & Violations
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/alerts/configure` | Configure alert rules |
-| `GET` | `/alerts` | List alert configurations |
-| `GET` | `/violations/history` | Get violation history |
+Example location update:
 
-### WebSocket
-| Endpoint | Description |
-|----------|-------------|
-| `ws://localhost:8080/ws` | Real-time vehicle location stream |
-
----
-
-## 🛠️ Tech Stack
-
-### Backend
-- **Go 1.21** — compiled, high-performance API server
-- **gorilla/mux** — HTTP router
-- **gorilla/websocket** — WebSocket hub for real-time updates
-- **lib/pq** — PostgreSQL driver
-- **Ray-Casting Algorithm** — point-in-polygon geofence detection
-
-### Frontend
-- **React 18** + **Vite** — fast dev + optimized build
-- **Tailwind CSS** — utility-first styling
-- **React-Leaflet** — interactive maps with polygon drawing
-- **Axios** — HTTP client with request/response interceptors
-- **React Hot Toast** — notification system
-- **Lucide React** — icon library
-- **date-fns** — date formatting
-
-### Infrastructure
-- **PostgreSQL 16** (Alpine) — relational DB with JSONB for polygon coords
-- **Docker Compose** — multi-service orchestration with health checks
-
----
-
-## 📁 Project Structure
-
-```
-geotrack/
-├── backend/
-│   ├── main.go              # Entry point, router, WebSocket hub
-│   ├── handlers/            # HTTP handler functions
-│   ├── models/              # DB models & queries
-│   ├── migrations/          # SQL schema migrations
-│   └── Dockerfile
-├── frontend/
-│   ├── src/
-│   │   ├── pages/           # Dashboard, Vehicles, Geofences, etc.
-│   │   ├── api/             # Axios API client
-│   │   ├── components/      # Reusable UI components
-│   │   └── App.jsx          # Router + layout
-│   ├── index.html
-│   └── package.json
-├── docker-compose.yml       # Postgres + Backend services
-└── README.md
+```bash
+curl -X POST https://geofencing-real-time-alert-system-h1vz.onrender.com/vehicles/location \
+  -H "Content-Type: application/json" \
+  -d '{"vehicle_id":"<uuid>","latitude":28.6139,"longitude":77.2090}'
 ```
 
----
+WebSocket alert payload:
 
-## 🔧 Configuration
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `host=postgres port=5432 user=postgres password=postgres dbname=geotrack sslmode=disable` | PostgreSQL connection string |
-| `PORT` | `8080` | Backend server port |
-
----
-
-## 🧠 Key Design Decisions
-
-### Ray-Casting Algorithm
-Geofence violation detection uses the **ray-casting algorithm** to determine if a GPS coordinate falls inside a polygon:
-```go
-// Cast a horizontal ray from the point and count polygon edge intersections
-// Odd intersections = inside polygon
+```json
+{
+  "event_id": "evt_…",
+  "event_type": "entry",
+  "timestamp": "2026-11-26T08:13:04Z",
+  "vehicle_id": "…",
+  "vehicle_number": "DL01AB1234",
+  "driver_name": "Rahul Kumar",
+  "latitude": 28.5961,
+  "longitude": 77.1973,
+  "geofence_name": "Restricted Zone A",
+  "speed_kmh": 92.4
+}
 ```
 
-### WebSocket Hub
-A centralized Go `Hub` struct manages all connected WebSocket clients, enabling O(1) broadcast when a vehicle location is updated.
+`geofence_name` is `null` and `speed_kmh` is present for `speed_violation` events.
 
-### JSONB Polygon Storage
-Geofence coordinates are stored as PostgreSQL JSONB arrays, allowing flexible polygon shapes without a fixed schema.
+## Local setup
 
-### Docker Network Isolation
-Services communicate over a private `geotrack_net` bridge network — PostgreSQL is never exposed to the host.
+**Prerequisites:** Go 1.21+, Node 20+, and either Docker or a local PostgreSQL.
 
----
+```bash
+git clone https://github.com/ANJALI01322/Geofencing-Real-time-Alert-System.git
+cd Geofencing-Real-time-Alert-System
 
-## 🤝 Collaborators
+# 1. Database + API with Docker
+docker compose up --build -d          # API on http://localhost:8080
 
-This project was submitted as part of the **MapUp Full-Stack Developer Assessment**.
+# …or run the API directly against your own Postgres
+cd backend
+cp .env.example .env                  # edit DATABASE_URL, then export the variables
+go run .
 
----
+# 2. Frontend
+cd frontend
+cp .env.example .env.local
+npm install
+npm run dev                           # http://localhost:5173
+```
 
-## 📄 License
+The schema is created automatically on startup.
 
-MIT License — see [LICENSE](LICENSE) for details.
+### Tests
+
+```bash
+cd backend && go vet ./... && go test ./...   # geofence, speed, transitions, middleware
+cd frontend && npm run build
+```
+
+CI (`.github/workflows/ci.yml`) runs the same checks on every push.
+
+## Environment variables
+
+**Backend** (`backend/.env.example`)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DATABASE_URL` | yes (prod) | local Postgres DSN | PostgreSQL connection string |
+| `PORT` | no | `8080` | HTTP port |
+| `CORS_ORIGINS` | recommended | allow all (with a warning) | Comma-separated allowed origins, e.g. `https://your-app.vercel.app` |
+
+**Frontend** (`frontend/.env.example`, read at build time)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `VITE_API_URL` | yes (prod) | `http://localhost:8080` | API base URL |
+| `VITE_WS_URL` | no | derived from `VITE_API_URL` | WebSocket URL (`wss://` on HTTPS sites) |
+
+## Screenshots
+
+| Dashboard | Dark mode |
+|---|---|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Dashboard in dark mode](docs/screenshots/dashboard-dark.png) |
+
+| Geofences | Violation log |
+|---|---|
+| ![Geofences](docs/screenshots/geofences.png) | ![Violation log](docs/screenshots/violations.png) |
+
+## Project structure
+
+```
+backend/
+  main.go            router, CORS, graceful shutdown, /health
+  handlers/          REST handlers, geofence + speed processing
+  geo/               point-in-polygon + entry/exit transition (with tests)
+  middleware/        request ID, access logging, CORS origin parsing
+  ws/                WebSocket hub
+  db/                connection + schema migration
+  scripts/           manual maintenance SQL (demo-data cleanup)
+frontend/src/
+  pages/             Dashboard, Live Tracking, Fleet, Geofences, Alert Rules, Violations, Fleet Status
+  components/        Sidebar, Header, ErrorBoundary, empty/error states
+  context/           shared WebSocket connection (AlertSocketContext)
+  api/               Axios client with retry + cold-start handling
+  styles/theme.css   design tokens, light/dark themes
+```
+
+## Known limitations / future work
+
+- **No authentication** — every endpoint is public. Next step: JWT auth with per-organisation data.
+- **Speed cooldown is in memory** — it resets on restart and isn't shared across multiple API instances (Redis would fix that).
+- **WebSocket accepts any origin** — `CORS_ORIGINS` covers REST only; the WS origin check is still open.
+- **One shared alert stream** — every client receives every alert; per-user subscriptions would scale better.
+- **Geofence checks scan all zones** — fine for tens of zones; PostGIS with a spatial index would scale to thousands.
+- **Simulated GPS** — locations come from the in-browser simulator, not real devices.
+- **Free-tier hosting** — cold starts on Render; a paid instance or a keep-alive ping would remove them.

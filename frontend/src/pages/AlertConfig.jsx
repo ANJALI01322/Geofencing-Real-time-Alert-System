@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { vehicleAPI, geofenceAPI, alertAPI } from "../api";
 import toast from "react-hot-toast";
-import { Plus, X, SlidersHorizontal, Trash2, Bell, ChevronRight, Zap } from "lucide-react";
+import { Plus, X, Bell, ChevronRight, Zap } from "lucide-react";
 
 const EVENT_OPTIONS = [
   { value: "entry", label: "Zone Entry" },
@@ -40,7 +40,6 @@ export default function AlertConfig() {
     finally { setLoading(false); }
   };
 
-  const getLabel = (arr, id, field = "name") => arr.find(x => x.id === id)?.[field] || id?.slice(0,8) || "—";
 
   return (
     <div className="page-wrap content-scroll">

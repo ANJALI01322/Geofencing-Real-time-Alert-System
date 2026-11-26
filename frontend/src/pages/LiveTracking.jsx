@@ -1,5 +1,6 @@
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from "react";
+import { useAlertSocket } from "../context/AlertSocketContext";
 import { MapContainer, TileLayer, Marker, Popup, Polygon, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -35,11 +36,13 @@ function FlyTo({ pos }) {
 
 export default function LiveTracking() {
   const [vehicles, setVehicles] = useState([]);
+  const [vState, setVState] = useState("loading"); // loading | ok | error
   const [geofences, setGeofences] = useState([]);
   const [positions, setPositions] = useState({});
   const [selected, setSelected] = useState(null);
-  const [wsStatus, setWsStatus] = useState("connecting");
-  const wsRef = useRef(null);
+  const { status: socketStatus, lastAlert } = useAlertSocket();
+  const wsStatus = socketStatus === "connected" ? "live" : socketStatus;
+  const seenAlert = useRef(lastAlert); // ignore an alert that arrived before this page opened
   const simRef = useRef(null);
   const playRef = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -80,6 +83,7 @@ export default function LiveTracking() {
         const raw = r.data?.data?.vehicles ?? r.data?.vehicles ?? r.data?.data ?? r.data;
         const v = Array.isArray(raw) ? raw : [];
         setVehicles(v);
+        setVState("ok");
         const init = {};
         v.forEach((veh, i) => {
           const angle = (i / Math.max(v.length, 1)) * 2 * Math.PI;
@@ -90,7 +94,7 @@ export default function LiveTracking() {
         });
         setPositions(init);
       })
-      .catch(() => toast.error("Failed to load vehicles"));
+      .catch(() => { setVState("error"); toast.error("Failed to load vehicles"); });
 
     geofenceAPI
       .list()
@@ -121,36 +125,21 @@ export default function LiveTracking() {
     return () => clearInterval(simRef.current);
   }, []);
 
-  // WebSocket
+  // React to alerts from the shared WebSocket (positions + toasts)
   useEffect(() => {
-    const connect = () => {
-      const ws = new WebSocket(import.meta.env.VITE_WS_URL || `wss://geofencing-real-time-alert-system-h1vz.onrender.com/ws/alerts`);
-      wsRef.current = ws;
-      ws.onopen = () => setWsStatus("live");
-      ws.onmessage = (e) => {
-        try {
-          const ev = JSON.parse(e.data);
-          if (ev.vehicle_id && ev.latitude != null) {
-            setPositions((p) => ({
-              ...p,
-              [ev.vehicle_id]: { lat: ev.latitude, lng: ev.longitude },
-            }));
-          }
-          if (ev.event_type) {
-            const vid = ev.vehicle_number || ev.vehicle?.vehicle_number || ev.vehicle_id;
-            const gname = ev.geofence_name || ev.geofence?.geofence_name;
-            const msg = `${vid} ${ev.event_type === "entry" ? "entered" : "exited"} ${gname}`;
-            if (ev.event_type === "entry") toast.success(msg);
-            else if (ev.event_type === "exit") toast.error(msg);
-          }
-        } catch {}
-      };
-      ws.onclose = () => { setWsStatus("reconnecting"); setTimeout(connect, 3000); };
-      ws.onerror = () => ws.close();
-    };
-    connect();
-    return () => wsRef.current?.close();
-  }, []);
+    const ev = lastAlert;
+    if (!ev || ev === seenAlert.current) return;
+    if (ev.vehicle_id && ev.latitude != null) {
+      setPositions((p) => ({ ...p, [ev.vehicle_id]: { lat: ev.latitude, lng: ev.longitude } }));
+    }
+    if (ev.event_type) {
+      const vid = ev.vehicle_number || ev.vehicle?.vehicle_number || ev.vehicle_id;
+      const gname = ev.geofence_name || ev.geofence?.geofence_name;
+      const msg = `${vid} ${ev.event_type === "entry" ? "entered" : "exited"} ${gname}`;
+      if (ev.event_type === "entry") toast.success(msg);
+      else if (ev.event_type === "exit") toast.error(msg);
+    }
+  }, [lastAlert]);
 
   const posOf = (id) => (playPos && playPos.id === id ? playPos : positions[id]);
   const selPos = selected ? posOf(selected) : null;
@@ -200,7 +189,17 @@ export default function LiveTracking() {
               </div>
             );
           })}
-          {vehicles.length === 0 && (
+          {vState === "loading" && (
+            <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+              {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 44 }} />)}
+            </div>
+          )}
+          {vState === "error" && (
+            <div style={{ padding: 20, textAlign: "center", fontSize: "0.75rem", color: "var(--danger)" }}>
+              Couldn't load vehicles. Reload the page to retry.
+            </div>
+          )}
+          {vState === "ok" && vehicles.length === 0 && (
             <div style={{ padding: 20, textAlign: "center", fontSize: "0.75rem", color: "var(--text-3)" }}>
               No vehicles registered.<br />Add vehicles in Fleet section.
             </div>

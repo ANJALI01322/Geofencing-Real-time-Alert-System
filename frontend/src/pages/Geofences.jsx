@@ -2,8 +2,9 @@ import { useEffect, useState, useCallback } from "react";
 import { MapContainer, TileLayer, Polygon, Polyline, CircleMarker, useMapEvents, Tooltip } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { geofenceAPI, violationAPI } from "../api";
+import ErrorState from "../components/ErrorState";
 import toast from "react-hot-toast";
-import { Hexagon, Layers, Trash2, CheckCircle, XCircle, ChevronRight, MousePointer2 } from "lucide-react";
+import { Hexagon, Layers, Trash2, CheckCircle, XCircle, MousePointer2 } from "lucide-react";
 
 const CATEGORIES = ["restricted_zone","delivery_zone","toll_zone","customer_area"];
 const CAT_COLOR = { restricted_zone:"badge-red", delivery_zone:"badge-green", toll_zone:"badge-amber", customer_area:"badge-blue" };
@@ -43,7 +44,11 @@ export default function Geofences() {
 
   const [violationCounts, setViolationCounts] = useState({});
 
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState(false);
+
   const load = () => {
+    setListError(false);
     geofenceAPI.list().then(r => {
       const d = r.data?.data?.geofences ?? r.data?.data ?? r.data;
       const list = Array.isArray(d) ? d : [];
@@ -56,7 +61,7 @@ export default function Geofences() {
         });
         setViolationCounts(counts);
       }).catch(() => setViolationCounts({}));
-    }).catch(() => setGeofences([]));
+    }).catch(() => { setGeofences([]); setListError(true); }).finally(() => setListLoading(false));
   };
 
   useEffect(() => { load(); }, []);
@@ -239,7 +244,13 @@ export default function Geofences() {
                 </span>
               </div>
             </div>
-            {geofences.length === 0 ? (
+            {listLoading && geofences.length === 0 ? (
+              <div style={{ padding:16, display:"flex", flexDirection:"column", gap:10 }}>
+                {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height:48 }} />)}
+              </div>
+            ) : listError && geofences.length === 0 ? (
+              <ErrorState title="Couldn't load zones" message="The server didn't respond. Please try again." onRetry={load} />
+            ) : geofences.length === 0 ? (
               <div style={{ textAlign:"center", padding:"40px 20px" }}>
                 <Hexagon size={28} color="var(--text-3)" style={{ margin:"0 auto 10px" }} />
                 <div style={{ fontSize:"0.78rem", color:"var(--text-3)" }}>No zones yet</div>

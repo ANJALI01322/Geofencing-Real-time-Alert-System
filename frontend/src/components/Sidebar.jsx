@@ -2,8 +2,9 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, Truck, Hexagon, Radio, AlertOctagon, Bell, Satellite,
-  PanelLeftClose, PanelLeftOpen,
+  PanelLeftClose, PanelLeftOpen, Sun, Moon,
 } from "lucide-react";
+import { useTheme } from "../theme";
 
 const GROUPS = [
   { label: "Overview", items: [
@@ -21,14 +22,27 @@ const GROUPS = [
   ]},
 ];
 
-export default function Sidebar({ connected, mobileOpen, onNavigate }) {
+const STATUS_PILL = {
+  connected:    { label: "WS LIVE",    cls: "" },
+  connecting:   { label: "CONNECTING", cls: " warn" },
+  disconnected: { label: "OFFLINE",    cls: " off" },
+};
+
+export default function Sidebar({ status = "connecting", mobileOpen, onNavigate }) {
+  const pill = STATUS_PILL[status] || STATUS_PILL.connecting;
   const [collapsed, setCollapsed] = useState(false);
+  const { theme, toggle } = useTheme();
 
   return (
     <aside className={`gt-sb${collapsed ? " collapsed" : ""}${mobileOpen ? " mobile-open" : ""}`}>
       <div className="gt-sb-brand">
         <div className="gt-sb-logo"><Satellite size={16} color="#fff" /></div>
         <span className="gt-sb-title gt-txt">GeoTrack</span>
+        <button className="gt-theme-btn gt-txt" onClick={toggle}
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          title={theme === "dark" ? "Light mode" : "Dark mode"}>
+          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+        </button>
       </div>
 
       <nav className="gt-sb-nav">
@@ -47,9 +61,9 @@ export default function Sidebar({ connected, mobileOpen, onNavigate }) {
       </nav>
 
       <div className="gt-sb-foot">
-        <div className={`gt-pill${connected ? "" : " off"}`} data-tip={connected ? "WS LIVE" : "OFFLINE"}>
+        <div className={`gt-pill${pill.cls}`} data-tip={pill.label}>
           <span className="gt-pill-dot" />
-          <span className="gt-txt">{connected ? "WS LIVE" : "OFFLINE"}</span>
+          <span className="gt-txt">{pill.label}</span>
         </div>
         <div className="gt-sb-meta">
           <span className="gt-sb-ver">GeoTrack · v2.0</span>

@@ -1,15 +1,27 @@
-# Node
+# Dependencies
 node_modules/
 frontend/node_modules/
+
+# Build output
+dist/
 frontend/dist/
-frontend/.env.local
 
-# Go
+# Environment files (keep the examples)
+.env
+.env.*
+!.env.example
+
+# Go binaries & test artefacts
 backend/geotrack
-backend/*.exe
+backend/geotrack.exe
+*.exe
+*.test
+*.out
+coverage.out
 
-# Docker
+# Logs
 *.log
+npm-debug.log*
 
 # OS
 .DS_Store
@@ -19,4 +31,5 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Personal documents
 *.pdf

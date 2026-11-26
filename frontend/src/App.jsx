@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-import { useWebSocket } from "./hooks/useWebSocket";
+import { AlertSocketProvider, useAlertSocket } from "./context/AlertSocketContext";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import Dashboard from "./pages/Dashboard";
@@ -13,15 +13,16 @@ import Violations from "./pages/Violations";
 import AlertRules from "./pages/AlertRules";
 import VehicleStatus from "./pages/VehicleStatus";
 
-function Shell({ lastAlert, connected, alertHistory }) {
+function Shell() {
+  const { status, alertHistory } = useAlertSocket();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { pathname } = useLocation();
   return (
     <div className="gt-shell">
-      <Sidebar connected={connected} mobileOpen={mobileOpen} onNavigate={() => setMobileOpen(false)} />
+      <Sidebar status={status} mobileOpen={mobileOpen} onNavigate={() => setMobileOpen(false)} />
       <div className={`gt-overlay${mobileOpen ? " show" : ""}`} onClick={() => setMobileOpen(false)} />
       <div className="gt-main">
-        <Header connected={connected} onMenu={() => setMobileOpen(true)} />
+        <Header status={status} onMenu={() => setMobileOpen(true)} />
         <main className="gt-content">
           <div className="page-enter" key={pathname}>
             <Routes>
@@ -29,7 +30,7 @@ function Shell({ lastAlert, connected, alertHistory }) {
               <Route path="/dashboard"     element={<Dashboard alertHistory={alertHistory} />} />
               <Route path="/vehicles"      element={<Vehicles />} />
               <Route path="/geofences"     element={<Geofences />} />
-              <Route path="/live-tracking" element={<LiveTracking lastAlert={lastAlert} connected={connected} />} />
+              <Route path="/live-tracking" element={<LiveTracking />} />
               <Route path="/alert-config"  element={<AlertConfig />} />
               <Route path="/violations"    element={<Violations />} />
               <Route path="/alert-rules"   element={<AlertRules />} />
@@ -43,16 +44,17 @@ function Shell({ lastAlert, connected, alertHistory }) {
 }
 
 export default function App() {
-  const { lastAlert, connected, alertHistory } = useWebSocket();
   return (
-    <BrowserRouter>
+    <AlertSocketProvider>
+      <BrowserRouter>
       <Toaster position="top-right" toastOptions={{
         duration: 4000,
-        style: { background:"#FFFFFF", color:"#111827", border:"1px solid #E5E7EB", borderRadius:"10px", fontSize:"0.875rem", fontWeight:500, boxShadow:"0 4px 12px rgba(0,0,0,0.08)" },
+        style: { background:"var(--surface)", color:"var(--text)", border:"1px solid var(--border)", borderRadius:"10px", fontSize:"0.875rem", fontWeight:500, boxShadow:"var(--shadow-md)" },
         success: { iconTheme: { primary:"#16A34A", secondary:"#FFFFFF" } },
         error:   { iconTheme: { primary:"#DC2626", secondary:"#FFFFFF" } },
       }} />
-      <Shell lastAlert={lastAlert} connected={connected} alertHistory={alertHistory} />
+      <Shell />
     </BrowserRouter>
+    </AlertSocketProvider>
   );
 }

@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { vehicleAPI, locationAPI } from "../api";
 import toast from "react-hot-toast";
 import EmptyState from "../components/EmptyState";
-import { Plus, X, Truck, User, Phone, MapPin, Circle, ChevronRight, Navigation } from "lucide-react";
+import ErrorState from "../components/ErrorState";
+import { Plus, X, Truck, User, Phone, ChevronRight, Navigation } from "lucide-react";
 
 const TYPES = ["truck", "van", "bike", "car", "bus"];
 const TYPE_STYLE = {
@@ -11,28 +12,8 @@ const TYPE_STYLE = {
   bike:    { bg: "#F0FDF4", color: "#15803D", border: "#BBF7D0" },
   car:     { bg: "#FFFBEB", color: "#B45309", border: "#FDE68A" },
   bus:     { bg: "#EEF2FF", color: "#4338CA", border: "#C7D2FE" },
-  default: { bg: "#F3F4F6", color: "#4B5563", border: "#E5E7EB" },
+  default: { bg: "#F3F4F6", color: "var(--text-2)", border: "var(--border)" },
 };
-const TYPE_COLOR = { truck:"badge-blue", van:"badge-cyan", bike:"badge-green", car:"badge-amber", bus:"badge-indigo" };
-
-function StatusDot({ active }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <div className="dot-wrap" style={{ width: 8, height: 8 }}>
-        {active && <div className="live-ring" style={{ background: "var(--green)" }} />}
-        <div style={{
-          width: 8, height: 8, borderRadius: "50%",
-          background: active ? "var(--green)" : "var(--text-3)",
-          position: "relative", zIndex: 1,
-        }} className={active ? "blink" : ""} />
-      </div>
-      <span style={{ fontSize: "0.72rem", color: active ? "var(--green)" : "var(--text-3)", fontFamily: "JetBrains Mono", fontWeight: 600 }}>
-        {active ? "ONLINE" : "OFFLINE"}
-      </span>
-    </div>
-  );
-}
-
 export default function Vehicles() {
   const [vehicles, setVehicles] = useState([]);
   const [form, setForm] = useState({ vehicle_number: "", vehicle_type: "truck", driver_name: "", phone_number: "" });
@@ -41,10 +22,16 @@ export default function Vehicles() {
   const [simVehicle, setSimVehicle] = useState("");
   const [simulating, setSimulating] = useState(false);
 
-  const load = () => vehicleAPI.list().then(r => {
-    const d = r.data?.data?.vehicles ?? r.data?.vehicles ?? r.data?.data ?? r.data;
-    setVehicles(Array.isArray(d) ? d : []);
-  });
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState(false);
+
+  const load = () => {
+    setListError(false);
+    return vehicleAPI.list().then(r => {
+      const d = r.data?.data?.vehicles ?? r.data?.vehicles ?? r.data?.data ?? r.data;
+      setVehicles(Array.isArray(d) ? d : []);
+    }).catch(() => setListError(true)).finally(() => setListLoading(false));
+  };
 
   useEffect(() => { load(); }, []);
 
@@ -88,7 +75,7 @@ export default function Vehicles() {
   };
 
   return (
-    <div style={{ padding: "28px 32px", minHeight: "100%", background: "#F8FAFC", fontFamily: "Inter,system-ui,sans-serif" }}>
+    <div style={{ padding: "28px 32px", minHeight: "100%", background: "var(--bg-subtle)", fontFamily: "Inter,system-ui,sans-serif" }}>
       <div style={{ height: 3, background: "linear-gradient(90deg,#3B82F6,#22C55E)", margin: "-28px -32px 25px" }} />
             {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
@@ -97,8 +84,8 @@ export default function Vehicles() {
             <Truck size={20} color="#2563EB" strokeWidth={2} />
           </div>
           <div>
-            <h1 style={{ fontSize: "1.35rem", fontWeight: 800, color: "#111827", letterSpacing: "-0.02em", lineHeight: 1.1, margin: 0 }}>Fleet Registry</h1>
-            <p style={{ fontSize: "0.78rem", color: "#6B7280", marginTop: 2, marginBottom: 0 }}>Manage vehicles, drivers and live status</p>
+            <h1 style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text)", letterSpacing: "-0.02em", lineHeight: 1.1, margin: 0 }}>Fleet Registry</h1>
+            <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2, marginBottom: 0 }}>Manage vehicles, drivers and live status</p>
           </div>
         </div>
         <button onClick={() => setShowForm(s => !s)}
@@ -113,12 +100,12 @@ export default function Vehicles() {
         {[
           { label: "Total Vehicles", value: vehicles.length, bg: "#EFF6FF", border: "#BFDBFE", color: "#1D4ED8", dot: "#3B82F6" },
           { label: "Active", value: activeCount, bg: "#F0FDF4", border: "#BBF7D0", color: "#15803D", dot: "#22C55E" },
-          { label: "Offline", value: offlineCount, bg: "#F3F4F6", border: "#E5E7EB", color: "#4B5563", dot: "#9CA3AF" },
+          { label: "Offline", value: offlineCount, bg: "#F3F4F6", border: "var(--border)", color: "var(--text-2)", dot: "#9CA3AF" },
         ].map(s => (
           <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 18px", borderRadius: 10, background: s.bg, border: `1px solid ${s.border}` }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.dot }} />
-            <span style={{ fontSize: "1.3rem", fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</span>
-            <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>{s.label}</span>
+            <span style={{ fontSize: "1.3rem", fontWeight: 800, color: s.color, lineHeight: 1 }}>{listLoading ? "–" : s.value}</span>
+            <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{s.label}</span>
           </div>
         ))}
       </div>
@@ -188,7 +175,15 @@ export default function Vehicles() {
       )}
 
       {/* Vehicle cards */}
-      {vehicles.length === 0 ? (
+      {listLoading && vehicles.length === 0 ? (
+        <div className="stagger" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+          {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 170 }} />)}
+        </div>
+      ) : listError && vehicles.length === 0 ? (
+        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)" }}>
+          <ErrorState onRetry={load} />
+        </div>
+      ) : vehicles.length === 0 ? (
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", boxShadow: "var(--shadow-sm)" }}>
           <EmptyState icon={Truck} title="No vehicles in fleet" text="Add your first vehicle to start tracking">
             <button onClick={() => setShowForm(true)}
@@ -210,7 +205,7 @@ export default function Vehicles() {
                       <Truck size={19} color="#2563EB" />
                     </div>
                     <div style={{ minWidth: 0 }}>
-                      <div title={v.vehicle_number} style={{ fontWeight: 700, fontSize: "0.95rem", color: "#111827", fontFamily: "var(--font-mono)", letterSpacing: "0", lineHeight: 1.15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{v.vehicle_number}</div>
+                      <div title={v.vehicle_number} style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--text)", fontFamily: "var(--font-mono)", letterSpacing: "0", lineHeight: 1.15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{v.vehicle_number}</div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
                         <span style={{ width: 8, height: 8, borderRadius: "50%", background: active ? "#22C55E" : "#9CA3AF" }} />
                         <span style={{ fontSize: "0.68rem", fontWeight: 700, color: active ? "#16A34A" : "#6B7280", letterSpacing: "0.06em" }}>{active ? "ACTIVE" : "OFFLINE"}</span>
@@ -223,7 +218,7 @@ export default function Vehicles() {
                   <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.82rem", color: v.driver_name ? "#374151" : "#9CA3AF" }}>
                     <User size={13} color="#9CA3AF" /> {v.driver_name || "No driver assigned"}
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.78rem", color: "#6B7280", fontFamily: "var(--font-mono)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.78rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
                     <Phone size={13} color="#9CA3AF" /> {v.phone_number || v.driver_phone || "—"}
                   </div>
                 </div>

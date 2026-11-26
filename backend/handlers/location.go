@@ -158,6 +158,11 @@ func haversineMeters(lat1, lng1, lat2, lng2 float64) float64 {
 	return earthRadius * 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 }
 
+// speedKmh converts a distance in meters covered in the given seconds to km/h.
+func speedKmh(meters, seconds float64) float64 {
+	return meters / seconds * 3.6
+}
+
 // checkSpeedViolation runs in a goroutine. If the speed between the previous and
 // new position exceeds speedLimitKmh, it stores a 'speed_violation' and broadcasts it.
 func (h *Handler) checkSpeedViolation(vehicle models.Vehicle, newLat, newLng, prevLat, prevLng, seconds float64) {
@@ -166,7 +171,7 @@ func (h *Handler) checkSpeedViolation(vehicle models.Vehicle, newLat, newLng, pr
 		return
 	}
 	meters := haversineMeters(prevLat, prevLng, newLat, newLng)
-	speed := meters / seconds * 3.6
+	speed := speedKmh(meters, seconds)
 	log.Printf("Speed check: vehicle=%s distance=%.1fm dt=%.2fs speed=%.1f km/h", vehicle.VehicleNumber, meters, seconds, speed)
 	if speed <= speedLimitKmh {
 		return
