@@ -5,6 +5,7 @@ import {
   RefreshCw, Clock, MapPin, Car, Shield, TrendingUp, Download
 } from "lucide-react";
 import { format } from "date-fns";
+import EmptyState from "../components/EmptyState";
 
 export default function Violations() {
   const [violations, setViolations] = useState([]);
@@ -90,7 +91,7 @@ export default function Violations() {
   return (
     <div style={{ padding: "28px 32px", minHeight: "100vh", background: "#F8FAFC", fontFamily: "'Inter', sans-serif" }}>
       <div style={{ height: 3, background: "linear-gradient(90deg,#3B82F6,#22C55E)", margin: "-28px -32px 25px" }} />
-
+      
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 42, height: 42, borderRadius: 12, background: "linear-gradient(135deg,#FEE2E2,#FCA5A5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -228,31 +229,17 @@ export default function Violations() {
 
         {loading && violations.length === 0 ? (
           <div style={{ padding: "12px 16px 16px" }}>
-            {[1,2,3,4,5].map(i => <div key={i} style={{ height: 56, marginBottom: 4, borderRadius: 8, background: "#F3F4F6" }} />)}
+            {[1,2,3,4,5].map(i => <div key={i} className="skeleton" style={{ height: 52, marginBottom: 6 }} />)}
           </div>
         ) : filtered.length === 0 ? (
           violations.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "64px 20px" }}>
-              <div style={{ width: 72, height: 72, borderRadius: 20, background: "linear-gradient(135deg,#F0FDF4,#DCFCE7)", border: "1px solid #BBF7D0", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-                <Shield size={32} color="#16A34A" />
-              </div>
-              <div style={{ fontSize: "1rem", fontWeight: 700, color: "#15803D", marginBottom: 6 }}>No violations recorded</div>
-              <div style={{ fontSize: "0.8rem", color: "#6B7280", maxWidth: 360, margin: "0 auto", lineHeight: 1.7 }}>
-                All vehicles are operating within geofence boundaries
-              </div>
-            </div>
+            <EmptyState good icon={Shield} title="No violations recorded" text="All vehicles are operating within geofence boundaries" />
           ) : (
-            <div style={{ textAlign: "center", padding: "64px 20px" }}>
-              <div style={{ width: 64, height: 64, borderRadius: 18, background: "#F9FAFB", border: "2px dashed #E5E7EB", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-                <Filter size={28} color="#D1D5DB" />
-              </div>
-              <div style={{ fontSize: "0.95rem", fontWeight: 600, color: "#374151", marginBottom: 6 }}>No matching violations</div>
-              <div style={{ fontSize: "0.78rem", color: "#9CA3AF" }}>Try clearing the filters</div>
-            </div>
+            <EmptyState icon={Filter} title="No matching violations" text="Try clearing the filters" />
           )
         ) : (
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <table className="dt">
               <thead>
                 <tr style={{ background: "#F9FAFB" }}>
                   {["Event", "Vehicle", "Driver", "Zone", "Category", "Coordinates", "Timestamp"].map(h => (

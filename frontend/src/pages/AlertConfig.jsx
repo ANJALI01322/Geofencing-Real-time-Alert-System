@@ -136,7 +136,7 @@ export default function AlertConfig() {
               {rules.map((r, i) => (
                 <tr key={r.id || i}>
                   <td>
-                    <span style={{ fontWeight: 600, color: "var(--text-1)", fontFamily: "Space Grotesk" }}>
+                    <span style={{ fontWeight: 600, color: "var(--text-1)", fontFamily: "Inter" }}>
                       {vehicles.find(v=>v.vehicle_id===r.vehicle_id)?.vehicle_number || r.vehicle_id?.slice(0,8) || '—'}
                     </span>
                   </td>

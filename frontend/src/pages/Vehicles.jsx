@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { vehicleAPI, locationAPI } from "../api";
 import toast from "react-hot-toast";
+import EmptyState from "../components/EmptyState";
 import { Plus, X, Truck, User, Phone, MapPin, Circle, ChevronRight, Navigation } from "lucide-react";
 
 const TYPES = ["truck", "van", "bike", "car", "bus"];
@@ -89,8 +90,7 @@ export default function Vehicles() {
   return (
     <div style={{ padding: "28px 32px", minHeight: "100%", background: "#F8FAFC", fontFamily: "Inter,system-ui,sans-serif" }}>
       <div style={{ height: 3, background: "linear-gradient(90deg,#3B82F6,#22C55E)", margin: "-28px -32px 25px" }} />
-
-      {/* Header */}
+            {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 42, height: 42, borderRadius: 11, background: "#EFF6FF", border: "1px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -177,7 +177,7 @@ export default function Vehicles() {
               <option value="">Select vehicle…</option>
               {vehicles.map(v => <option key={vid(v)} value={vid(v)}>{v.vehicle_number}</option>)}
             </select>
-            <button className="btn-ghost" onClick={simulate} disabled={simulating || !simVehicle}>
+            <button className="btn-ghost" onClick={simulate} disabled={simulating || !simVehicle} style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 38, padding: "0 14px", borderRadius: "var(--r-md)", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text-2)", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
               {simulating ? "Simulating…" : <><Navigation size={13} /> Simulate Route</>}
             </button>
             <span style={{ fontSize: "0.72rem", color: "var(--text-3)" }}>
@@ -189,34 +189,28 @@ export default function Vehicles() {
 
       {/* Vehicle cards */}
       {vehicles.length === 0 ? (
-        <div style={{ background: "#fff", border: "1.5px dashed #D1D5DB", borderRadius: 16, textAlign: "center", padding: "72px 20px" }}>
-          <div style={{ width: 76, height: 76, borderRadius: 20, background: "linear-gradient(135deg,#EFF6FF,#DBEAFE)", border: "1px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
-            <Truck size={34} color="#2563EB" strokeWidth={1.8} />
-          </div>
-          <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "#111827", marginBottom: 6 }}>No vehicles in fleet</div>
-          <div style={{ fontSize: "0.85rem", color: "#6B7280", marginBottom: 22 }}>Add your first vehicle to start tracking</div>
-          <button onClick={() => setShowForm(true)}
-            style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "11px 24px", borderRadius: 9, border: "none", background: "#2563EB", color: "#fff", fontSize: "0.88rem", fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 8px rgba(37,99,235,0.3)" }}>
-            <Plus size={15} /> Add Vehicle
-          </button>
+        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", boxShadow: "var(--shadow-sm)" }}>
+          <EmptyState icon={Truck} title="No vehicles in fleet" text="Add your first vehicle to start tracking">
+            <button onClick={() => setShowForm(true)}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 20, padding: "10px 18px", borderRadius: "var(--r-md)", border: "none", background: "var(--primary)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              <Plus size={14} /> Add Vehicle
+            </button>
+          </EmptyState>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+        <div className="stagger" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
           {vehicles.map(v => {
             const active = isActive(v);
             const tc = TYPE_STYLE[v.vehicle_type] || TYPE_STYLE.default;
             return (
-              <div key={vid(v)}
-                style={{ background: "#fff", border: "1px solid #E5E7EB", borderTop: `3px solid ${active ? "#22C55E" : "#D1D5DB"}`, borderRadius: 12, padding: "18px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", transition: "box-shadow 0.2s, transform 0.15s" }}
-                onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)"; e.currentTarget.style.transform = "translateY(0)"; }}>
+              <div key={vid(v)} className="gt-card" style={{ padding: "18px 20px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <div style={{ width: 42, height: 42, borderRadius: 10, background: "#EFF6FF", border: "1px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       <Truck size={19} color="#2563EB" />
                     </div>
                     <div>
-                      <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "#111827", fontFamily: "monospace", letterSpacing: "0.03em", lineHeight: 1.15 }}>{v.vehicle_number}</div>
+                      <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "#111827", fontFamily: "var(--font-mono)", letterSpacing: "0.01em", lineHeight: 1.15 }}>{v.vehicle_number}</div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
                         <span style={{ width: 8, height: 8, borderRadius: "50%", background: active ? "#22C55E" : "#9CA3AF" }} />
                         <span style={{ fontSize: "0.68rem", fontWeight: 700, color: active ? "#16A34A" : "#6B7280", letterSpacing: "0.06em" }}>{active ? "ACTIVE" : "OFFLINE"}</span>
@@ -229,7 +223,7 @@ export default function Vehicles() {
                   <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.82rem", color: v.driver_name ? "#374151" : "#9CA3AF" }}>
                     <User size={13} color="#9CA3AF" /> {v.driver_name || "No driver assigned"}
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.78rem", color: "#6B7280", fontFamily: "monospace" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.78rem", color: "#6B7280", fontFamily: "var(--font-mono)" }}>
                     <Phone size={13} color="#9CA3AF" /> {v.phone_number || v.driver_phone || "—"}
                   </div>
                 </div>

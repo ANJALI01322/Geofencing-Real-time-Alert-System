@@ -8,25 +8,20 @@ import {
 
 function StatCard({ icon: Icon, label, value, sub, accent, trend }) {
   const C = {
-    blue:  { bg:"#EFF6FF",border:"#BFDBFE",icon:"#2563EB",text:"#1D4ED8",bar:"#3B82F6" },
-    green: { bg:"#F0FDF4",border:"#BBF7D0",icon:"#16A34A",text:"#15803D",bar:"#22C55E" },
-    amber: { bg:"#FFFBEB",border:"#FDE68A",icon:"#D97706",text:"#B45309",bar:"#F59E0B" },
-    red:   { bg:"#FFF1F2",border:"#FECDD3",icon:"#DC2626",text:"#B91C1C",bar:"#EF4444" },
+    blue:  { bg:"#EFF6FF",icon:"#2563EB",text:"#1D4ED8",bar:"#3B82F6",w:72 },
+    green: { bg:"#F0FDF4",icon:"#16A34A",text:"#15803D",bar:"#22C55E",w:58 },
+    amber: { bg:"#FFFBEB",icon:"#D97706",text:"#B45309",bar:"#F59E0B",w:44 },
+    red:   { bg:"#FFF1F2",icon:"#DC2626",text:"#B91C1C",bar:"#EF4444",w:30 },
   }[accent] || {};
   return (
-    <div style={{ background:"#FFF", border:`1px solid ${C.border}`, borderRadius:12,
-      padding:"20px 24px", position:"relative", overflow:"hidden",
-      boxShadow:"0 1px 3px rgba(0,0,0,0.06)", transition:"box-shadow 0.2s, transform 0.15s" }}
-      onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 4px 12px rgba(0,0,0,0.1)";e.currentTarget.style.transform="translateY(-2px)"}}
-      onMouseLeave={e=>{e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,0.06)";e.currentTarget.style.transform="translateY(0)"}}>
-      <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:C.bar,borderRadius:"12px 12px 0 0"}}/>
+    <div className="gt-stat">
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
         <div>
-          <p style={{fontSize:"0.68rem",fontWeight:700,color:"#6B7280",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:10}}>{label}</p>
-          <p style={{fontSize:"2.4rem",fontWeight:800,color:"#111827",lineHeight:1,letterSpacing:"-0.04em"}}>{value ?? "0"}</p>
-          {sub && <p style={{fontSize:"0.72rem",color:"#9CA3AF",marginTop:8}}>{sub}</p>}
+          <p className="gt-stat-label">{label}</p>
+          <p className="gt-stat-value fade-num">{value ?? "0"}</p>
+          {sub && <p style={{fontSize:"0.72rem",color:"#94A3B8",marginTop:8}}>{sub}</p>}
         </div>
-        <div style={{width:44,height:44,borderRadius:10,background:C.bg,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+        <div style={{width:44,height:44,borderRadius:10,background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
           <Icon size={20} color={C.icon} strokeWidth={2}/>
         </div>
       </div>
@@ -34,6 +29,7 @@ function StatCard({ icon: Icon, label, value, sub, accent, trend }) {
         <TrendingUp size={12} color={C.icon}/>
         <span style={{fontSize:"0.68rem",color:C.text,fontWeight:600}}>{trend}</span>
       </div>}
+      <div className="gt-spark"><span style={{width:`${C.w||60}%`,background:C.bar}}/></div>
     </div>
   );
 }
@@ -52,18 +48,18 @@ function Badge({type}){
 function ViolationRow({v}){
   const ts=v.timestamp||v.triggered_at;
   return <div style={{display:"grid",gridTemplateColumns:"90px 1fr 1fr 90px",gap:12,alignItems:"center",
-    padding:"11px 20px",borderBottom:"1px solid #F3F4F6",fontSize:"0.78rem",transition:"background 0.1s"}}
-    onMouseEnter={e=>e.currentTarget.style.background="#F9FAFB"}
+    padding:"11px 20px",borderBottom:"1px solid #F1F3F6",fontSize:13,transition:"background 0.18s"}}
+    onMouseEnter={e=>e.currentTarget.style.background="#F8FAFC"}
     onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
     <Badge type={v.event_type}/>
-    <span style={{color:"#111827",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+    <span style={{color:"#0F172A",fontWeight:600,fontFamily:"var(--font-mono)",fontSize:12.5,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
       {v.vehicle_number||v.vehicle_id||"Unknown"}
     </span>
     <span style={{color:"#6B7280",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
       {v.geofence_name||v.zone_name||v.geofence?.geofence_name||v.geofence?.name||(v.event_type==="speed_violation"?"Speed limit exceeded":"\u2014")}
     </span>
     <div style={{textAlign:"right"}}>
-      <div style={{color:"#374151",fontFamily:"JetBrains Mono,monospace",fontSize:"0.68rem"}}>
+      <div style={{color:"#334155",fontFamily:"JetBrains Mono,monospace",fontSize:12}}>
         {ts?new Date(ts).toLocaleTimeString("en-GB",{hour12:false}):"\u2014"}
       </div>
       <div style={{color:"#9CA3AF",fontSize:"0.6rem"}}>
@@ -121,9 +117,6 @@ export default function Dashboard({alertHistory}){
   const [loading,setLoading]=useState(true);
   const [lastRefresh,setLastRefresh]=useState(null);
   const [refreshing,setRefreshing]=useState(false);
-  const [now,setNow]=useState(new Date());
-
-  useEffect(()=>{const t=setInterval(()=>setNow(new Date()),1000);return()=>clearInterval(t);},[]);
 
   const fetchData=useCallback(async(silent=false)=>{
     if(!silent)setLoading(true); else setRefreshing(true);
@@ -169,16 +162,6 @@ export default function Dashboard({alertHistory}){
           </div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{display:"flex",alignItems:"center",gap:7,padding:"7px 14px",borderRadius:8,background:"#F0FDF4",border:"1px solid #BBF7D0"}}>
-            <span className="live-dot-green"/>
-            <span style={{fontSize:"0.68rem",fontWeight:700,color:"#16A34A",letterSpacing:"0.08em"}}>LIVE</span>
-          </div>
-          <div style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:8,background:"#FFFFFF",border:"1px solid #E5E7EB"}}>
-            <Clock size={12} color="#6B7280"/>
-            <span style={{fontSize:"0.72rem",color:"#374151",fontFamily:"JetBrains Mono,monospace",fontWeight:500}}>
-              {now.toLocaleTimeString("en-GB",{hour12:false})}
-            </span>
-          </div>
           <button onClick={()=>fetchData(true)} disabled={refreshing}
             style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:8,background:"#FFFFFF",border:"1px solid #E5E7EB",cursor:refreshing?"default":"pointer",color:"#374151",fontSize:"0.72rem",fontWeight:600}}>
             <RefreshCw size={12} color={refreshing?"#3B82F6":"#6B7280"} style={{animation:refreshing?"spin 1s linear infinite":"none"}}/>
@@ -187,34 +170,40 @@ export default function Dashboard({alertHistory}){
         </div>
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,marginBottom:20}}>
+      <div className="stagger gt-grid-4" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,marginBottom:20}}>
         <StatCard icon={Truck}         label="Total Vehicles"  value={stats.vehicles}  sub={`${stats.active} with active GPS`} accent="blue"  trend="Fleet size"/>
         <StatCard icon={Satellite}     label="Active Tracking" value={stats.active}    sub="Location updated"                   accent="green" trend="GPS online"/>
         <StatCard icon={Shield}        label="Geofence Zones"  value={stats.geofences} sub="Monitored areas"                    accent="amber" trend="Zones configured"/>
         <StatCard icon={AlertTriangle} label="Violations"      value={stats.alerts}    sub="Total recorded events"              accent="red"   trend="All time"/>
       </div>
 
-      <div style={{fontSize:"0.78rem",fontWeight:700,marginBottom:20}}>
-        <span style={{color:"#16A34A"}}>Entry: {evStats.entry}</span>
-        <span style={{color:"#9CA3AF"}}> | </span>
-        <span style={{color:"#DC2626"}}>Exit: {evStats.exit}</span>
+      <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--r-lg)",boxShadow:"var(--shadow-sm)",padding:"16px 20px",marginBottom:20}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:10}}>
+          <span style={{fontSize:11,fontWeight:600,color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:"0.08em"}}>Event breakdown</span>
+          <span style={{fontSize:12,color:"var(--text-muted)",fontFamily:"var(--font-mono)"}}>{evStats.entry+evStats.exit} total</span>
+        </div>
+        <div className="gt-seg">
+          <span style={{width:`${(evStats.entry+evStats.exit)>0?evStats.entry/(evStats.entry+evStats.exit)*100:0}%`,background:"#22C55E"}}/>
+          <span style={{width:`${(evStats.entry+evStats.exit)>0?evStats.exit/(evStats.entry+evStats.exit)*100:0}%`,background:"#EF4444"}}/>
+        </div>
+        <div style={{display:"flex",gap:20,marginTop:10,fontSize:13,fontWeight:600}}>
+          <span style={{color:"#15803D",display:"flex",alignItems:"center",gap:6}}><i style={{width:8,height:8,borderRadius:"50%",background:"#22C55E"}}/>Entry: {evStats.entry}</span>
+          <span style={{color:"#B91C1C",display:"flex",alignItems:"center",gap:6}}><i style={{width:8,height:8,borderRadius:"50%",background:"#EF4444"}}/>Exit: {evStats.exit}</span>
+        </div>
       </div>
 
-      <div style={{display:"flex",alignItems:"center",padding:"10px 18px",borderRadius:10,background:"#FFFFFF",border:"1px solid #E5E7EB",marginBottom:20,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+      <div style={{display:"flex",alignItems:"center",flexWrap:"wrap",gap:8,marginBottom:20}}>
         {[
-          {icon:CheckCircle2,label:"System",value:"Operational",color:"#16A34A"},
-          {icon:Activity,label:"WebSocket",value:liveAlerts.length>0?"Connected":"Listening",color:"#2563EB"},
-          {icon:Zap,label:"Alert Engine",value:"Active",color:"#D97706"},
-          {icon:Shield,label:"GPS Engine",value:stats.active>0?`${stats.active} tracking`:"Standby",color:"#7C3AED"},
+          {label:"System",value:"Operational",color:"#16A34A"},
+          {label:"WebSocket",value:liveAlerts.length>0?"Connected":"Listening",color:"#2563EB"},
+          {label:"Alert Engine",value:"Active",color:"#D97706"},
+          {label:"GPS Engine",value:stats.active>0?`${stats.active} tracking`:"Standby",color:"#7C3AED"},
         ].map((s,i)=>(
-          <div key={i} style={{display:"flex",alignItems:"center",gap:7,marginRight:20}}>
-            {i>0&&<div style={{width:1,height:18,background:"#E5E7EB",marginRight:13}}/>}
-            <s.icon size={13} color={s.color}/>
-            <span style={{fontSize:"0.68rem",color:"#6B7280"}}>{s.label}:</span>
-            <span style={{fontSize:"0.68rem",fontWeight:700,color:s.color}}>{s.value}</span>
-          </div>
+          <span key={i} className="gt-chip">
+            <i style={{background:s.color}}/>{s.label}: <b style={{color:s.color}}>{s.value}</b>
+          </span>
         ))}
-        <div style={{marginLeft:"auto",fontSize:"0.65rem",color:"#9CA3AF",fontStyle:"italic"}}>Auto-refreshes every 10s</div>
+        <span style={{marginLeft:"auto",fontSize:12,color:"var(--text-muted)"}}>Auto-refreshes every 10s</span>
       </div>
 
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
@@ -225,7 +214,7 @@ export default function Dashboard({alertHistory}){
             {["Event","Vehicle","Zone","Time"].map(h=><span key={h} style={{fontSize:"0.6rem",fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.1em"}}>{h}</span>)}
           </div>
           <div style={{maxHeight:320,overflowY:"auto"}}>
-            {loading?[1,2,3,4].map(i=><div key={i} style={{height:46,borderBottom:"1px solid #F3F4F6",background:i%2===0?"#FAFAFA":"#FFF"}}/>)
+            {loading?[1,2,3,4].map(i=><div key={i} className="skeleton" style={{height:34,margin:"10px 20px"}}/>)
               :recentV.length===0?<Empty icon={Activity} title="No violations recorded" sub="Trigger a geofence to see events here"/>
               :recentV.map((v,i)=><ViolationRow key={v.id||v.violation_id||i} v={v}/>)}
           </div>

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { vehicleAPI, geofenceAPI, alertAPI } from "../api";
 import toast from "react-hot-toast";
 import { Bell } from "lucide-react";
+import EmptyState from "../components/EmptyState";
 
 const card = { background: "#fff", borderRadius: 14, border: "1.5px solid #E5E7EB", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" };
 const label = { fontSize: "0.68rem", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em" };
@@ -98,9 +99,9 @@ export default function AlertRules() {
           Configured Rules ({rules.length})
         </div>
         {rules.length === 0 ? (
-          <div style={{ padding: "40px 20px", textAlign: "center", fontSize: "0.82rem", color: "#9CA3AF" }}>No alert rules configured yet</div>
+          <EmptyState icon={Bell} title="No alert rules configured yet" text="Create a rule above to get notified on geofence entry or exit." />
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <table className="dt">
             <thead>
               <tr style={{ background: "#F9FAFB" }}>
                 {["Vehicle", "Geofence", "Event", "Created"].map(h => (

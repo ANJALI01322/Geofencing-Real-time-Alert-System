@@ -1,7 +1,9 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { useWebSocket } from "./hooks/useWebSocket";
 import Sidebar from "./components/Sidebar";
+import Header from "./components/Header";
 import Dashboard from "./pages/Dashboard";
 import Vehicles from "./pages/Vehicles";
 import Geofences from "./pages/Geofences";
@@ -10,6 +12,35 @@ import AlertConfig from "./pages/AlertConfig";
 import Violations from "./pages/Violations";
 import AlertRules from "./pages/AlertRules";
 import VehicleStatus from "./pages/VehicleStatus";
+
+function Shell({ lastAlert, connected, alertHistory }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const { pathname } = useLocation();
+  return (
+    <div className="gt-shell">
+      <Sidebar connected={connected} mobileOpen={mobileOpen} onNavigate={() => setMobileOpen(false)} />
+      <div className={`gt-overlay${mobileOpen ? " show" : ""}`} onClick={() => setMobileOpen(false)} />
+      <div className="gt-main">
+        <Header connected={connected} onMenu={() => setMobileOpen(true)} />
+        <main className="gt-content">
+          <div className="page-enter" key={pathname}>
+            <Routes>
+              <Route path="/"              element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard"     element={<Dashboard alertHistory={alertHistory} />} />
+              <Route path="/vehicles"      element={<Vehicles />} />
+              <Route path="/geofences"     element={<Geofences />} />
+              <Route path="/live-tracking" element={<LiveTracking lastAlert={lastAlert} connected={connected} />} />
+              <Route path="/alert-config"  element={<AlertConfig />} />
+              <Route path="/violations"    element={<Violations />} />
+              <Route path="/alert-rules"   element={<AlertRules />} />
+              <Route path="/fleet-status"  element={<VehicleStatus />} />
+            </Routes>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const { lastAlert, connected, alertHistory } = useWebSocket();
@@ -21,22 +52,7 @@ export default function App() {
         success: { iconTheme: { primary:"#16A34A", secondary:"#FFFFFF" } },
         error:   { iconTheme: { primary:"#DC2626", secondary:"#FFFFFF" } },
       }} />
-      <div style={{ display:"flex", height:"100vh", overflow:"hidden", background:"#F8FAFC" }}>
-        <Sidebar connected={connected} />
-        <main style={{ flex:1, overflowY:"auto" }}>
-          <Routes>
-            <Route path="/"              element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard"     element={<Dashboard alertHistory={alertHistory} />} />
-            <Route path="/vehicles"      element={<Vehicles />} />
-            <Route path="/geofences"     element={<Geofences />} />
-            <Route path="/live-tracking" element={<LiveTracking lastAlert={lastAlert} connected={connected} />} />
-            <Route path="/alert-config"  element={<AlertConfig />} />
-            <Route path="/violations"    element={<Violations />} />
-            <Route path="/alert-rules"   element={<AlertRules />} />
-            <Route path="/fleet-status"  element={<VehicleStatus />} />
-          </Routes>
-        </main>
-      </div>
+      <Shell lastAlert={lastAlert} connected={connected} alertHistory={alertHistory} />
     </BrowserRouter>
   );
 }

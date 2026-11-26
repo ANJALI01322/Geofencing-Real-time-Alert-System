@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { vehicleAPI, violationAPI } from "../api";
 import { Truck, User, AlertTriangle, Clock } from "lucide-react";
+import EmptyState from "../components/EmptyState";
 
 export default function VehicleStatus() {
   const [vehicles, setVehicles] = useState([]);
@@ -29,7 +30,7 @@ export default function VehicleStatus() {
   return (
     <div style={{ padding: "28px 32px", minHeight: "100vh", background: "#F8FAFC", fontFamily: "'Inter', sans-serif" }}>
       <div style={{ height: 3, background: "linear-gradient(90deg,#3B82F6,#22C55E)", margin: "-28px -32px 25px" }} />
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
         <div style={{ width: 42, height: 42, borderRadius: 12, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Truck size={20} color="#2563EB" />
         </div>
@@ -40,15 +41,17 @@ export default function VehicleStatus() {
       </div>
 
       {loading ? (
-        <div style={{ color: "#9CA3AF", fontSize: "0.85rem" }}>Loading…</div>
-      ) : cards.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "64px 20px", color: "#9CA3AF", fontSize: "0.85rem" }}>No vehicles registered</div>
-      ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
+          {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 150 }} />)}
+        </div>
+      ) : cards.length === 0 ? (
+        <EmptyState icon={Truck} title="No vehicles registered" text="Add vehicles in Fleet to see their violation status here." />
+      ) : (
+        <div className="stagger" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
           {cards.map(c => (
-            <div key={c._id} style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #E5E7EB", borderTop: `3px solid ${c.count > 0 ? "#EF4444" : "#22C55E"}`, boxShadow: "0 1px 4px rgba(0,0,0,0.05)", padding: "18px 20px" }}>
+            <div key={c._id} className="gt-card" style={{ padding: "18px 20px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <span style={{ fontWeight: 700, fontSize: "0.95rem", color: "#111827", fontFamily: "monospace", letterSpacing: "0.03em" }}>{c.vehicle_number}</span>
+                <span style={{ fontWeight: 700, fontSize: "0.95rem", color: "#111827", fontFamily: "var(--font-mono)", letterSpacing: "0.01em" }}>{c.vehicle_number}</span>
                 <span style={{ fontSize: "0.68rem", fontWeight: 600, padding: "3px 9px", borderRadius: 6, background: "#EFF6FF", color: "#2563EB", border: "1px solid #BFDBFE" }}>{c.vehicle_type || "—"}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", color: "#374151", marginBottom: 14 }}>

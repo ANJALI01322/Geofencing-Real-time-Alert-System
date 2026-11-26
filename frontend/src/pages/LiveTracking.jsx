@@ -157,7 +157,7 @@ export default function LiveTracking() {
   const selVehicle = vehicles.find((v) => v.vehicle_id === selected);
 
   return (
-    <div style={{ display: "flex", height: "100vh", background: "var(--bg-base)" }}>
+    <div style={{ display: "flex", height: "100%", background: "var(--bg-base)" }}>
       {/* Sidebar */}
       <div style={{ width: 260, flexShrink: 0, borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div style={{ padding: "16px 14px 10px", borderBottom: "1px solid var(--border)" }}>
@@ -187,7 +187,7 @@ export default function LiveTracking() {
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0, boxShadow: `0 0 6px ${color}` }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: "0.78rem", color: "var(--text-1)", fontFamily: "Space Grotesk" }}>{v.vehicle_number}</div>
+                    <div style={{ fontWeight: 600, fontSize: "0.78rem", color: "var(--text-1)", fontFamily: "Inter" }}>{v.vehicle_number}</div>
                     <div style={{ fontSize: "0.65rem", color: "var(--text-3)" }}>{v.driver_name}</div>
                   </div>
                   <Navigation size={11} color={color} />

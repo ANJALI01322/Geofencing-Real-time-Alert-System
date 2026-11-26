@@ -8,11 +8,25 @@ import { Hexagon, Layers, Trash2, CheckCircle, XCircle, ChevronRight, MousePoint
 const CATEGORIES = ["restricted_zone","delivery_zone","toll_zone","customer_area"];
 const CAT_COLOR = { restricted_zone:"badge-red", delivery_zone:"badge-green", toll_zone:"badge-amber", customer_area:"badge-blue" };
 
-const polyColor = cat =>
-  cat === "restricted_zone" ? "#ef4444" :
-  cat === "parking"    ? "#0ea5e9" :
-  cat === "warehouse"  ? "#f59e0b" :
-  cat === "delivery"   ? "#22c55e" : "#94a3b8";
+// Single source of truth for zone colours (map polygons, list dots, legend)
+const ZONE_COLORS = {
+  restricted_zone: "#DC2626",
+  toll_zone:       "#D97706",
+  customer_area:   "#2563EB",
+  parking:         "#0EA5E9",
+  warehouse:       "#7C3AED",
+  delivery_zone:   "#16A34A",
+};
+const ZONE_LABELS = {
+  restricted_zone: "Restricted",
+  toll_zone:       "Toll",
+  customer_area:   "Customer area",
+  parking:         "Parking",
+  warehouse:       "Warehouse",
+  delivery_zone:   "Delivery",
+};
+const polyColor = cat => ZONE_COLORS[cat] || "#94A3B8";
+const zoneName = g => g.name || g.geofence_name || g.zone_name || "Unnamed zone";
 
 // Click handler component
 function ClickHandler({ drawing, onPoint }) {
@@ -83,24 +97,30 @@ export default function Geofences() {
     <div style={{ display:"flex", flexDirection:"column", height:"100%", background:"var(--bg-base)", overflow:"hidden" }}>
 
       {/* Top bar */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 24px", borderBottom:"1px solid var(--border)", flexShrink:0 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ width:3, height:20, background:"var(--amber)", borderRadius:2, boxShadow:"0 0 8px var(--amber)" }} />
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"20px 24px 4px", flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:42, height:42, borderRadius:11, background:"#EFF6FF", border:"1px solid #BFDBFE", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <Hexagon size={20} color="#2563EB" strokeWidth={2} />
+          </div>
           <div>
-            <h1 style={{ fontFamily:"Space Grotesk", fontSize:"1.1rem", fontWeight:700, color:"var(--text-1)", lineHeight:1.2 }}>Geofence Zones</h1>
-            <p className="page-sub">{geofences.length} zone{geofences.length!==1?"s":""} · click map to draw polygons</p>
+            <h1 style={{ fontFamily:"Inter", fontSize:24, fontWeight:600, color:"var(--text-1)", lineHeight:1.15, letterSpacing:"-0.02em", margin:0 }}>Geofence Zones</h1>
+            <p style={{ fontSize:13, color:"var(--text-3)", margin:"2px 0 0" }}>{geofences.length} zone{geofences.length!==1?"s":""} · click map to draw polygons</p>
           </div>
         </div>
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
           {!drawing ? (
-            <button className="btn-primary" onClick={startDrawing} style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <MousePointer2 size={13} /> Start Drawing
+            <button className="btn-primary" onClick={startDrawing}
+              style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", borderRadius:"var(--r-md)", fontSize:13, fontWeight:600 }}>
+              <MousePointer2 size={14} /> Start Drawing
             </button>
           ) : (
             <>
-              <span className="badge badge-green" style={{ padding:"5px 10px" }}>✦ {points.length} points</span>
-              {points.length > 0 && <button className="btn-ghost" onClick={undoPoint}><Trash2 size={12}/> Undo</button>}
-              <button className="btn-ghost" onClick={cancelDrawing}><XCircle size={12}/> Cancel</button>
+              <span className="badge badge-green" style={{ padding:"6px 10px" }}>{points.length} points</span>
+              {points.length > 0 && <button className="btn-ghost" onClick={undoPoint} style={{ display:"flex", alignItems:"center", gap:6 }}><Trash2 size={12}/> Undo</button>}
+              <button onClick={cancelDrawing}
+                style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", borderRadius:"var(--r-md)", border:"none", background:"var(--danger)", color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                <XCircle size={14}/> Cancel Drawing
+              </button>
             </>
           )}
         </div>
@@ -109,7 +129,11 @@ export default function Geofences() {
       <div style={{ display:"flex", flex:1, overflow:"hidden" }}>
 
         {/* Map */}
-        <div style={{ flex:1, position:"relative", cursor: drawing ? "crosshair" : "default" }}>
+        <div style={{ flex:1, padding:16, minWidth:0 }}>
+        <div style={{ position:"relative", height:"100%", borderRadius:"var(--r-lg)", overflow:"hidden", border:"1px solid var(--border)", boxShadow:"var(--shadow-sm)", cursor: drawing ? "crosshair" : "default" }}>
+          <div className="gt-float">
+            {geofences.length} zone{geofences.length!==1?"s":""} · {geofences.filter(g=>g.category==="restricted_zone").length} restricted
+          </div>
           <MapContainer center={[28.6139, 77.2090]} zoom={12} style={{ width:"100%", height:"100%" }}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; CartoDB" />
             <ClickHandler drawing={drawing} onPoint={addPoint} />
@@ -139,10 +163,10 @@ export default function Geofences() {
               if (!coords?.length) return null;
               const color = polyColor(g.category);
               return (
-                <Polygon key={g.id} positions={coords}
+                <Polygon key={g.geofence_id||g.id} positions={coords}
                   pathOptions={{ color, fillColor:color, fillOpacity:0.1, weight:2 }}>
                   <Tooltip permanent direction="center">
-                    <span style={{ fontFamily:"Space Grotesk", fontWeight:700, fontSize:11, color }}>{g.name}</span>
+                    <span style={{ fontFamily:"Inter", fontWeight:700, fontSize:11, color }}>{zoneName(g)}</span>
                   </Tooltip>
                 </Polygon>
               );
@@ -162,16 +186,17 @@ export default function Geofences() {
             </div>
           )}
         </div>
+        </div>
 
         {/* Right panel */}
-        <div style={{ width:300, borderLeft:"1px solid var(--border)", display:"flex", flexDirection:"column", background:"var(--bg-base)", overflow:"hidden" }}>
+        <div style={{ width:360, margin:"16px 16px 16px 0", border:"1px solid var(--border)", borderRadius:"var(--r-lg)", boxShadow:"var(--shadow-sm)", display:"flex", flexDirection:"column", background:"var(--surface)", overflow:"hidden" }}>
 
           {/* Create form — shown when drawing or has points */}
           {(drawing || points.length > 0) && (
             <div style={{ padding:16, borderBottom:"1px solid var(--border)" }}>
               <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:14 }}>
                 <Hexagon size={13} color="var(--amber)" />
-                <span style={{ fontSize:"0.75rem", fontWeight:700, color:"var(--text-2)", fontFamily:"Space Grotesk", textTransform:"uppercase", letterSpacing:"0.08em" }}>New Zone</span>
+                <span style={{ fontSize:"0.75rem", fontWeight:700, color:"var(--text-2)", fontFamily:"Inter", textTransform:"uppercase", letterSpacing:"0.08em" }}>New Zone</span>
               </div>
               <form onSubmit={save} style={{ display:"flex", flexDirection:"column", gap:12 }}>
                 <div>
@@ -206,10 +231,10 @@ export default function Geofences() {
 
           {/* Zone list */}
           <div style={{ flex:1, overflowY:"auto" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 16px 8px", borderBottom:"1px solid var(--border)" }}>
+            <div style={{ position:"sticky", top:0, zIndex:2, background:"var(--surface)", display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 16px", borderBottom:"1px solid var(--border)" }}>
               <div style={{ display:"flex", alignItems:"center", gap:7 }}>
                 <Layers size={13} color="var(--text-3)" />
-                <span style={{ fontSize:"0.68rem", fontWeight:700, color:"var(--text-3)", textTransform:"uppercase", letterSpacing:"0.1em", fontFamily:"Space Grotesk" }}>
+                <span style={{ fontSize:"0.68rem", fontWeight:700, color:"var(--text-3)", textTransform:"uppercase", letterSpacing:"0.1em", fontFamily:"Inter" }}>
                   Zones ({geofences.length})
                 </span>
               </div>
@@ -223,18 +248,16 @@ export default function Geofences() {
             ) : geofences.map(g => {
               const color = polyColor(g.category);
               return (
-                <div key={g.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"11px 16px", borderBottom:"1px solid var(--border)" }}
-                  onMouseEnter={e=>e.currentTarget.style.background="var(--bg-hover)"}
-                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <div style={{ width:10, height:10, borderRadius:2, background:color, flexShrink:0, boxShadow:`0 0 6px ${color}60` }} />
+                <div key={g.geofence_id||g.id} className="zone-row">
+                  <div style={{ width:10, height:10, borderRadius:"50%", background:color, flexShrink:0 }} />
                   <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:"0.82rem", fontWeight:600, color:"var(--text-1)", fontFamily:"Space Grotesk", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{g.name}</div>
-                    <div style={{ fontSize:"0.65rem", color:"var(--text-3)", marginTop:2 }}>{g.coordinates?.length||0} vertices</div>
+                    <div style={{ fontSize:13.5, fontWeight:700, color:"var(--text-1)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{zoneName(g)}</div>
+                    <div style={{ fontSize:12, color:"var(--text-3)", marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{g.coordinates?.length||0} vertices · {g.category}</div>
                   </div>
-                  {violationCounts[g.name] > 0 && (
-                    <span style={{ flexShrink:0, minWidth:18, textAlign:"center", padding:"1px 6px", borderRadius:10, background:"#ef4444", color:"#fff", fontSize:"0.62rem", fontWeight:700 }}>{violationCounts[g.name]}</span>
+                  {violationCounts[zoneName(g)] > 0 && (
+                    <span style={{ flexShrink:0, minWidth:20, textAlign:"center", padding:"1px 7px", borderRadius:10, background:"#FEE2E2", color:"#B91C1C", fontSize:11, fontWeight:700 }}>{violationCounts[zoneName(g)]}</span>
                   )}
-                  <span className={`badge ${CAT_COLOR[g.category]||"badge-slate"}`} style={{ flexShrink:0 }}>{g.category}</span>
+                  <span className={`badge ${CAT_COLOR[g.category]||"badge-gray"}`} style={{ flexShrink:0 }}>{ZONE_LABELS[g.category]||g.category}</span>
                 </div>
               );
             })}
@@ -242,12 +265,12 @@ export default function Geofences() {
 
           {/* Legend */}
           <div style={{ padding:"12px 16px", borderTop:"1px solid var(--border)" }}>
-            <div style={{ fontSize:"0.6rem", fontWeight:700, color:"var(--text-3)", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:8, fontFamily:"Space Grotesk" }}>Zone Types</div>
+            <div style={{ fontSize:"0.6rem", fontWeight:700, color:"var(--text-3)", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:8, fontFamily:"Inter" }}>Zone Types</div>
             <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
-              {[["Restricted","#ef4444"],["Parking","#0ea5e9"],["Warehouse","#f59e0b"],["Delivery","#22c55e"]].map(([l,c])=>(
-                <div key={l} style={{ display:"flex", alignItems:"center", gap:7 }}>
-                  <div style={{ width:10, height:3, borderRadius:2, background:c }} />
-                  <span style={{ fontSize:"0.68rem", color:"var(--text-3)", fontFamily:"JetBrains Mono" }}>{l}</span>
+              {Object.entries(ZONE_COLORS).map(([k,c])=>(
+                <div key={k} style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <div style={{ width:10, height:10, borderRadius:"50%", background:c }} />
+                  <span style={{ fontSize:12, color:"var(--text-2)" }}>{ZONE_LABELS[k]} <span style={{ color:"var(--text-3)", fontFamily:"var(--font-mono)", fontSize:11 }}>{k}</span></span>
                 </div>
               ))}
             </div>
