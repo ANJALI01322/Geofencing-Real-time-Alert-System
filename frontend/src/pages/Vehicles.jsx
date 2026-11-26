@@ -205,19 +205,19 @@ export default function Vehicles() {
             return (
               <div key={vid(v)} className="gt-card" style={{ padding: "18px 20px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
                     <div style={{ width: 42, height: 42, borderRadius: 10, background: "#EFF6FF", border: "1px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       <Truck size={19} color="#2563EB" />
                     </div>
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "#111827", fontFamily: "var(--font-mono)", letterSpacing: "0.01em", lineHeight: 1.15 }}>{v.vehicle_number}</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div title={v.vehicle_number} style={{ fontWeight: 700, fontSize: "0.95rem", color: "#111827", fontFamily: "var(--font-mono)", letterSpacing: "0", lineHeight: 1.15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{v.vehicle_number}</div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
                         <span style={{ width: 8, height: 8, borderRadius: "50%", background: active ? "#22C55E" : "#9CA3AF" }} />
                         <span style={{ fontSize: "0.68rem", fontWeight: 700, color: active ? "#16A34A" : "#6B7280", letterSpacing: "0.06em" }}>{active ? "ACTIVE" : "OFFLINE"}</span>
                       </div>
                     </div>
                   </div>
-                  <ChevronRight size={18} color="#9CA3AF" />
+                  <ChevronRight size={18} color="#9CA3AF" style={{ flexShrink: 0 }} />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.82rem", color: v.driver_name ? "#374151" : "#9CA3AF" }}>

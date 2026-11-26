@@ -55,12 +55,23 @@ type Violation struct {
 
 // AlertEvent is the WebSocket message format
 type AlertEvent struct {
-	EventID   string       `json:"event_id"`
-	EventType string       `json:"event_type"`
-	Timestamp time.Time    `json:"timestamp"`
-	Vehicle   VehicleInfo  `json:"vehicle"`
-	Geofence  GeofenceInfo `json:"geofence"`
-	Location  LocationInfo `json:"location"`
+	EventID   string    `json:"event_id"`
+	EventType string    `json:"event_type"`
+	Timestamp time.Time `json:"timestamp"`
+
+	// Flat fields (always sent) so clients don't need to read the nested objects.
+	VehicleID     string   `json:"vehicle_id"`
+	VehicleNumber string   `json:"vehicle_number"`
+	DriverName    string   `json:"driver_name"`
+	Latitude      float64  `json:"latitude"`
+	Longitude     float64  `json:"longitude"`
+	GeofenceName  *string  `json:"geofence_name"`       // null for speed violations
+	SpeedKmh      *float64 `json:"speed_kmh,omitempty"` // only for speed violations
+
+	// Nested objects (kept for backward compatibility)
+	Vehicle  VehicleInfo  `json:"vehicle"`
+	Geofence GeofenceInfo `json:"geofence"`
+	Location LocationInfo `json:"location"`
 }
 
 type VehicleInfo struct {

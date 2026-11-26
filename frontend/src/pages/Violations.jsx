@@ -14,8 +14,7 @@ export default function Violations() {
   const [filters, setFilters] = useState({ vehicle_id: "", geofence_id: "", event_type: "", limit: 50 });
   const [loading, setLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(null);
-  const [vehicleQuery, setVehicleQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
+  const [stats, setStats] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -31,6 +30,13 @@ export default function Violations() {
       })
       .catch(() => setViolations([]))
       .finally(() => setLoading(false));
+    // Single source of truth for totals: /violations/stats
+    violationAPI.stats()
+      .then(r => {
+        const st = r.data?.data ?? r.data;
+        setStats({ entry: Number(st?.entry) || 0, exit: Number(st?.exit) || 0, speed: Number(st?.speed) || 0 });
+      })
+      .catch(() => setStats(null));
   }, [filters]);
 
   useEffect(() => {
@@ -50,14 +56,21 @@ export default function Violations() {
     return () => clearInterval(t);
   }, [load]);
 
-  const totalEntry = violations.filter(v => v.event_type === "entry").length;
-  const totalExit  = violations.filter(v => v.event_type === "exit").length;
-  const entryPct   = violations.length > 0 ? Math.round((totalEntry / violations.length) * 100) : 0;
+  // Totals come from the stats endpoint; fall back to the loaded list only if it fails
+  const lc = v => (v.event_type || "").toLowerCase();
+  const src = stats || {
+    entry: violations.filter(v => lc(v) === "entry").length,
+    exit:  violations.filter(v => lc(v) === "exit").length,
+    speed: violations.filter(v => lc(v) === "speed_violation").length,
+  };
+  const totalEntry = src.entry;
+  const totalExit  = src.exit;
+  const totalAll   = src.entry + src.exit + src.speed;
+  const entryPct   = totalAll > 0 ? Math.round((totalEntry / totalAll) * 100) : 0;
+  const exitPct    = totalAll > 0 ? Math.round((totalExit / totalAll) * 100) : 0;
 
-  const filtered = violations.filter(v =>
-    (!vehicleQuery || (v.vehicle_number || "").toLowerCase().includes(vehicleQuery.toLowerCase())) &&
-    (!typeFilter || v.event_type === typeFilter)
-  );
+  // Filtering is done by the "Filter Events" card (server side); CSV exports what is shown
+  const filtered = violations;
 
   const exportCSV = () => {
     const cols = ["timestamp", "vehicle_number", "geofence_name", "event_type"];
@@ -119,50 +132,36 @@ export default function Violations() {
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16 }}>
-        <input value={vehicleQuery} onChange={e => setVehicleQuery(e.target.value)} placeholder="Filter by vehicle number…"
-          style={{ ...sel, backgroundImage: "none", cursor: "text", minWidth: 220 }} />
-        <select style={{ ...sel, minWidth: 130 }} value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
-          <option value="">All</option>
-          <option value="entry">Entry</option>
-          <option value="exit">Exit</option>
-        </select>
-        <button onClick={() => { setVehicleQuery(""); setTypeFilter(""); }}
-          style={{ padding: "9px 16px", borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#fff", color: "#374151", fontSize: "0.82rem", fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
-          Clear
-        </button>
-      </div>
-
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
-        <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", border: "1.5px solid #E5E7EB", boxShadow: "0 1px 4px rgba(0,0,0,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="gt-stat" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>TOTAL EVENTS</div>
-            <div style={{ fontSize: "2.6rem", fontWeight: 800, color: "#111827", lineHeight: 1 }}>{violations.length}</div>
-            <div style={{ fontSize: "0.72rem", color: "#9CA3AF", marginTop: 7 }}>All boundary crossings</div>
+            <div style={{ fontSize: "2.1rem", fontWeight: 700, letterSpacing: "-0.03em", color: "#111827", lineHeight: 1 }}>{totalAll}</div>
+            <div style={{ fontSize: "0.72rem", color: "#9CA3AF", marginTop: 7 }}>All recorded events</div>
           </div>
-          <div style={{ width: 54, height: 54, borderRadius: 14, background: "linear-gradient(135deg,#EFF6FF,#DBEAFE)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 54, height: 54, borderRadius: 14, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <TrendingUp size={24} color="#2563EB" />
           </div>
         </div>
 
-        <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", border: "1.5px solid #E5E7EB", borderTop: "3px solid #22C55E", boxShadow: "0 1px 4px rgba(0,0,0,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="gt-stat" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>ZONE ENTRIES</div>
-            <div style={{ fontSize: "2.6rem", fontWeight: 800, color: "#16A34A", lineHeight: 1 }}>{totalEntry}</div>
+            <div style={{ fontSize: "2.1rem", fontWeight: 700, letterSpacing: "-0.03em", color: "#16A34A", lineHeight: 1 }}>{totalEntry}</div>
             <div style={{ fontSize: "0.72rem", color: "#9CA3AF", marginTop: 7 }}><span style={{ color: "#22C55E", fontWeight: 700 }}>{entryPct}%</span> of total events</div>
           </div>
-          <div style={{ width: 54, height: 54, borderRadius: 14, background: "linear-gradient(135deg,#F0FDF4,#DCFCE7)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 54, height: 54, borderRadius: 14, background: "#F0FDF4", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <ArrowDownRight size={26} color="#22C55E" />
           </div>
         </div>
 
-        <div style={{ background: "#fff", borderRadius: 14, padding: "22px 24px", border: "1.5px solid #E5E7EB", borderTop: "3px solid #EF4444", boxShadow: "0 1px 4px rgba(0,0,0,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="gt-stat" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>ZONE EXITS</div>
-            <div style={{ fontSize: "2.6rem", fontWeight: 800, color: "#DC2626", lineHeight: 1 }}>{totalExit}</div>
-            <div style={{ fontSize: "0.72rem", color: "#9CA3AF", marginTop: 7 }}><span style={{ color: "#EF4444", fontWeight: 700 }}>{100 - entryPct}%</span> of total events</div>
+            <div style={{ fontSize: "2.1rem", fontWeight: 700, letterSpacing: "-0.03em", color: "#DC2626", lineHeight: 1 }}>{totalExit}</div>
+            <div style={{ fontSize: "0.72rem", color: "#9CA3AF", marginTop: 7 }}><span style={{ color: "#EF4444", fontWeight: 700 }}>{exitPct}%</span> of total events</div>
           </div>
-          <div style={{ width: 54, height: 54, borderRadius: 14, background: "linear-gradient(135deg,#FFF1F2,#FFE4E6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 54, height: 54, borderRadius: 14, background: "#FFF1F2", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <ArrowUpRight size={26} color="#EF4444" />
           </div>
         </div>

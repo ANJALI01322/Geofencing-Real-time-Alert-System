@@ -70,6 +70,13 @@ function ViolationRow({v}){
 }
 
 function LiveAlertRow({a}){
+  const name=a.vehicle_number||a.vehicle?.vehicle_number||"Unknown vehicle";
+  const speedy=a.event_type==="speed_violation";
+  const lat=a.latitude??a.location?.latitude, lng=a.longitude??a.location?.longitude;
+  const place=a.geofence_name||a.geofence?.geofence_name
+    ||(speedy?(a.speed_kmh!=null?`${Math.round(a.speed_kmh)} km/h \u00b7 speed limit exceeded`:"Speed limit exceeded")
+      :(lat!=null&&lng!=null?`${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}`:"\u2014"));
+  const when=new Date(a.timestamp||Date.now());
   return <div style={{display:"flex",alignItems:"center",gap:12,padding:"11px 20px",
     borderBottom:"1px solid #F3F4F6",fontSize:"0.78rem",transition:"background 0.1s"}}
     onMouseEnter={e=>e.currentTarget.style.background="#F9FAFB"}
@@ -77,14 +84,14 @@ function LiveAlertRow({a}){
     <Badge type={a.event_type}/>
     <div style={{flex:1,minWidth:0}}>
       <div style={{color:"#111827",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-        {a.vehicle_number||a.vehicle_id||"Vehicle"}
+        {name}
       </div>
       <div style={{color:"#9CA3AF",fontSize:"0.65rem",fontFamily:"JetBrains Mono,monospace"}}>
-        {a.geofence_name||`${a.latitude?.toFixed(4)??"??"},${a.longitude?.toFixed(4)??"??"}`}
+        {place}
       </div>
     </div>
     <span style={{color:"#9CA3AF",fontSize:"0.65rem",fontFamily:"JetBrains Mono,monospace",flexShrink:0}}>
-      {new Date().toLocaleTimeString("en-GB",{hour12:false})}
+      {when.toLocaleTimeString("en-GB",{hour12:false})}
     </span>
   </div>;
 }
@@ -113,7 +120,7 @@ function Empty({icon:Icon,title,sub}){
 export default function Dashboard({alertHistory}){
   const [stats,setStats]=useState({vehicles:0,active:0,geofences:0,alerts:0});
   const [recentV,setRecentV]=useState([]);
-  const [evStats,setEvStats]=useState({entry:0,exit:0});
+  const [evStats,setEvStats]=useState({entry:0,exit:0,speed:0});
   const [loading,setLoading]=useState(true);
   const [lastRefresh,setLastRefresh]=useState(null);
   const [refreshing,setRefreshing]=useState(false);
@@ -128,15 +135,17 @@ export default function Dashboard({alertHistory}){
       const hasLoc=v=>v.last_location||v.latitude||v.longitude||v.location||v.last_lat;
       // Temporary display fix: if no vehicle reports a location, assume all are tracked (simulator)
       const active=vehicles.some(hasLoc)?vehicles.filter(hasLoc).length:vehicles.length;
-      setStats({vehicles:vehicles.length,active,geofences:geofences.length,alerts:violations.length});
       setRecentV(violations);
       const s=sRes?.data?.data??sRes?.data;
-      let entry=Number(s?.entry)||0, exit=Number(s?.exit)||0;
-      if(!sRes||(entry===0&&exit===0)){
+      let entry=Number(s?.entry)||0, exit=Number(s?.exit)||0, speed=Number(s?.speed)||0;
+      if(!sRes||(entry===0&&exit===0&&speed===0)){
         entry=violations.filter(v=>v.event_type?.toLowerCase()==="entry").length;
         exit=violations.filter(v=>v.event_type?.toLowerCase()==="exit").length;
+        speed=violations.filter(v=>v.event_type?.toLowerCase()==="speed_violation").length;
       }
-      setEvStats({entry,exit});
+      setEvStats({entry,exit,speed});
+      // Violations card = stats total (entry + exit + speed), not the loaded list length
+      setStats({vehicles:vehicles.length,active,geofences:geofences.length,alerts:entry+exit+speed});
       setLastRefresh(new Date());
     }catch(e){console.error("Dashboard fetch",e);}
     finally{setLoading(false);setRefreshing(false);}

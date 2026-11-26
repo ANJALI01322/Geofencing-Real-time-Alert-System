@@ -137,8 +137,8 @@ export default function LiveTracking() {
             }));
           }
           if (ev.event_type) {
-            const vid = ev.vehicle?.vehicle_number || ev.vehicle?.vehicle_id || ev.vehicle_id;
-            const gname = ev.geofence?.geofence_name || ev.geofence_name;
+            const vid = ev.vehicle_number || ev.vehicle?.vehicle_number || ev.vehicle_id;
+            const gname = ev.geofence_name || ev.geofence?.geofence_name;
             const msg = `${vid} ${ev.event_type === "entry" ? "entered" : "exited"} ${gname}`;
             if (ev.event_type === "entry") toast.success(msg);
             else if (ev.event_type === "exit") toast.error(msg);

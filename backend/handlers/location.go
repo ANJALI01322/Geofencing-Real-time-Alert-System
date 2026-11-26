@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -133,7 +134,18 @@ func (h *Handler) UpdateLocation(w http.ResponseWriter, r *http.Request) {
 	}, start)
 }
 
-const speedLimitKmh = 80.0
+const (
+	speedLimitKmh      = 80.0
+	maxPlausibleKmh    = 250.0            // above this = GPS jump, ignored
+	minSpeedSampleSecs = 2.0              // min dt between points for a speed reading
+	speedAlertCooldown = 60 * time.Second // min gap between speed alerts per vehicle
+)
+
+// lastSpeedAlert tracks the last speed alert time per vehicle (in-memory).
+var (
+	speedAlertMu   sync.Mutex
+	lastSpeedAlert = map[string]time.Time{}
+)
 
 // haversineMeters returns the great-circle distance between two points in meters.
 func haversineMeters(lat1, lng1, lat2, lng2 float64) float64 {
@@ -149,7 +161,8 @@ func haversineMeters(lat1, lng1, lat2, lng2 float64) float64 {
 // checkSpeedViolation runs in a goroutine. If the speed between the previous and
 // new position exceeds speedLimitKmh, it stores a 'speed_violation' and broadcasts it.
 func (h *Handler) checkSpeedViolation(vehicle models.Vehicle, newLat, newLng, prevLat, prevLng, seconds float64) {
-	if seconds <= 0 {
+	// Too-close samples give unreliable speeds
+	if seconds < minSpeedSampleSecs {
 		return
 	}
 	meters := haversineMeters(prevLat, prevLng, newLat, newLng)
@@ -158,6 +171,21 @@ func (h *Handler) checkSpeedViolation(vehicle models.Vehicle, newLat, newLng, pr
 	if speed <= speedLimitKmh {
 		return
 	}
+	// Implausible speed = GPS jump / simulator teleport, not a real violation
+	if speed > maxPlausibleKmh {
+		log.Printf("Ignoring implausible speed %.1f km/h for vehicle=%s (GPS jump)", speed, vehicle.VehicleNumber)
+		return
+	}
+
+	// Per-vehicle cooldown: reserve the slot atomically before inserting
+	speedAlertMu.Lock()
+	prevAlert, hadPrev := lastSpeedAlert[vehicle.ID]
+	if hadPrev && time.Since(prevAlert) < speedAlertCooldown {
+		speedAlertMu.Unlock()
+		return
+	}
+	lastSpeedAlert[vehicle.ID] = time.Now()
+	speedAlertMu.Unlock()
 
 	var violationID string
 	var violationTime time.Time
@@ -168,15 +196,30 @@ func (h *Handler) checkSpeedViolation(vehicle models.Vehicle, newLat, newLng, pr
 	`, vehicle.ID, newLat, newLng).Scan(&violationID, &violationTime)
 	if err != nil {
 		log.Printf("Failed to store speed violation: %v", err)
+		// release the reserved slot so a later sample can retry
+		speedAlertMu.Lock()
+		if hadPrev {
+			lastSpeedAlert[vehicle.ID] = prevAlert
+		} else {
+			delete(lastSpeedAlert, vehicle.ID)
+		}
+		speedAlertMu.Unlock()
 		return
 	}
 
 	log.Printf("🚨 speed_violation: vehicle=%s speed=%.1f km/h", vehicle.VehicleNumber, speed)
 
 	eventJSON, err := json.Marshal(models.AlertEvent{
-		EventID:   "evt_" + violationID,
-		EventType: "speed_violation",
-		Timestamp: violationTime,
+		EventID:       "evt_" + violationID,
+		EventType:     "speed_violation",
+		Timestamp:     violationTime,
+		VehicleID:     vehicle.ID,
+		VehicleNumber: vehicle.VehicleNumber,
+		DriverName:    vehicle.DriverName,
+		Latitude:      newLat,
+		Longitude:     newLng,
+		GeofenceName:  nil,
+		SpeedKmh:      &speed,
 		Vehicle: models.VehicleInfo{
 			VehicleID:     vehicle.ID,
 			VehicleNumber: vehicle.VehicleNumber,
@@ -244,10 +287,17 @@ func (h *Handler) processGeofenceTransitions(
 		}
 
 		// Build and broadcast the WebSocket alert event
+		gfName := gf.Name
 		event := models.AlertEvent{
-			EventID:   "evt_" + violationID,
-			EventType: eventType,
-			Timestamp: violationTime,
+			EventID:       "evt_" + violationID,
+			EventType:     eventType,
+			Timestamp:     violationTime,
+			VehicleID:     vehicle.ID,
+			VehicleNumber: vehicle.VehicleNumber,
+			DriverName:    vehicle.DriverName,
+			Latitude:      newLat,
+			Longitude:     newLng,
+			GeofenceName:  &gfName,
 			Vehicle: models.VehicleInfo{
 				VehicleID:     vehicle.ID,
 				VehicleNumber: vehicle.VehicleNumber,
