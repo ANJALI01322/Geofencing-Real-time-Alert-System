@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { vehicleAPI, locationAPI } from "../api";
+import { vehicleAPI, locationAPI, apiErrorMessage } from "../api";
+import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 import EmptyState from "../components/EmptyState";
 import ErrorState from "../components/ErrorState";
@@ -15,6 +16,7 @@ const TYPE_STYLE = {
   default: { bg: "var(--surface-2)", color: "var(--text-2)", border: "var(--border)" },
 };
 export default function Vehicles() {
+  const { canWrite } = useAuth(); // viewers are read-only
   const [vehicles, setVehicles] = useState([]);
   const [form, setForm] = useState({ vehicle_number: "", vehicle_type: "truck", driver_name: "", phone_number: "" });
   const [loading, setLoading] = useState(false);
@@ -52,7 +54,7 @@ export default function Vehicles() {
       setForm({ vehicle_number: "", vehicle_type: "truck", driver_name: "", phone_number: "" });
       setShowForm(false);
       load();
-    } catch { toast.error("Registration failed"); }
+    } catch (err) { toast.error(apiErrorMessage(err, "Registration failed")); }
     finally { setLoading(false); }
   };
 
@@ -88,11 +90,13 @@ export default function Vehicles() {
             <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2, marginBottom: 0 }}>Manage vehicles, drivers and live status</p>
           </div>
         </div>
-        <button onClick={() => setShowForm(s => !s)}
-          style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 8, border: "none", background: showForm ? "#6B7280" : "#2563EB", color: "#fff", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 6px rgba(37,99,235,0.25)" }}>
-          {showForm ? <X size={14} /> : <Plus size={14} />}
-          {showForm ? "Cancel" : "Add Vehicle"}
-        </button>
+        {canWrite && (
+          <button onClick={() => setShowForm(s => !s)}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 8, border: "none", background: showForm ? "#6B7280" : "#2563EB", color: "#fff", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 6px rgba(37,99,235,0.25)" }}>
+            {showForm ? <X size={14} /> : <Plus size={14} />}
+            {showForm ? "Cancel" : "Add Vehicle"}
+          </button>
+        )}
       </div>
 
       {/* Stats bar */}
@@ -111,8 +115,8 @@ export default function Vehicles() {
       </div>
 
       {/* Add form */}
-      {showForm && <div className="gt-sheet-backdrop" onClick={() => setShowForm(false)} />}
-      {showForm && (
+      {canWrite && showForm && <div className="gt-sheet-backdrop" onClick={() => setShowForm(false)} />}
+      {canWrite && showForm && (
         <div className="panel gt-sheet-mobile" style={{ marginBottom: 20 }}>
           <div className="panel-header">
             <span className="panel-title">Register New Vehicle</span>
@@ -150,8 +154,8 @@ export default function Vehicles() {
         </div>
       )}
 
-      {/* Simulate panel */}
-      {vehicles.length > 0 && (
+      {/* Simulate panel (writes locations, so admin only) */}
+      {canWrite && vehicles.length > 0 && (
         <div className="panel" style={{ marginBottom: 20 }}>
           <div className="panel-header">
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -186,11 +190,11 @@ export default function Vehicles() {
         </div>
       ) : vehicles.length === 0 ? (
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", boxShadow: "var(--shadow-sm)" }}>
-          <EmptyState icon={Truck} title="No vehicles in fleet" text="Add your first vehicle to start tracking">
-            <button onClick={() => setShowForm(true)}
+          <EmptyState icon={Truck} title="No vehicles in fleet" text={canWrite ? "Add your first vehicle to start tracking" : "No vehicles have been registered yet"}>
+            {canWrite && <button onClick={() => setShowForm(true)}
               style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 20, padding: "10px 18px", borderRadius: "var(--r-md)", border: "none", background: "var(--primary)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               <Plus size={14} /> Add Vehicle
-            </button>
+            </button>}
           </EmptyState>
         </div>
       ) : (

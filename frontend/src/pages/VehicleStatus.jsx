@@ -6,7 +6,7 @@ import ErrorState from "../components/ErrorState";
 
 export default function VehicleStatus() {
   const [vehicles, setVehicles] = useState([]);
-  const [violations, setViolations] = useState([]);
+  const [summary, setSummary] = useState({}); // vehicle_id -> { count, last_timestamp }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -15,13 +15,14 @@ export default function VehicleStatus() {
     setError(false);
     Promise.all([
       vehicleAPI.list().catch(() => null),
-      violationAPI.history({ limit: 1000 }).catch(() => null),
+      violationAPI.summary().catch(() => null),
     ]).then(([vRes, aRes]) => {
       if (!vRes) { setError(true); return; }
       const v = vRes?.data?.data?.vehicles ?? vRes?.data?.vehicles ?? vRes?.data?.data ?? vRes?.data;
-      const a = aRes?.data?.data?.violations ?? aRes?.data?.violations ?? aRes?.data?.data ?? aRes?.data;
+      const byVehicle = {};
+      (aRes?.data?.data?.by_vehicle ?? []).forEach(x => { byVehicle[x.vehicle_id] = x; });
       setVehicles(Array.isArray(v) ? v : []);
-      setViolations(Array.isArray(a) ? a : []);
+      setSummary(byVehicle);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -29,9 +30,8 @@ export default function VehicleStatus() {
 
   const cards = vehicles.map(v => {
     const id = v.vehicle_id || v.id;
-    const mine = violations.filter(x => x.vehicle_id === id);
-    const last = mine.reduce((m, x) => (!m || new Date(x.timestamp) > new Date(m) ? x.timestamp : m), null);
-    return { ...v, _id: id, count: mine.length, last };
+    const mine = summary[id];
+    return { ...v, _id: id, count: mine?.count ?? 0, last: mine?.last_timestamp ?? null };
   }).sort((a, b) => b.count - a.count);
 
   return (

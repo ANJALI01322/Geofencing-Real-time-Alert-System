@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { MapContainer, TileLayer, Polygon, Polyline, CircleMarker, useMap, useMapEvents, Tooltip } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { geofenceAPI, violationAPI } from "../api";
+import { geofenceAPI, violationAPI, apiErrorMessage } from "../api";
+import { useAuth } from "../context/AuthContext";
 import ErrorState from "../components/ErrorState";
 import toast from "react-hot-toast";
 import { Hexagon, Layers, Trash2, CheckCircle, XCircle, MousePointer2 } from "lucide-react";
@@ -83,6 +84,7 @@ function ZoneLabels({ zones }) {
 }
 
 export default function Geofences() {
+  const { canWrite } = useAuth(); // viewers cannot draw or create zones
   const [geofences, setGeofences] = useState([]);
   const [form, setForm] = useState({ name: "", category: "restricted_zone", description: "" });
   const [points, setPoints] = useState([]);   // current drawing points
@@ -100,12 +102,10 @@ export default function Geofences() {
       const d = r.data?.data?.geofences ?? r.data?.data ?? r.data;
       const list = Array.isArray(d) ? d : [];
       setGeofences(list);
-      violationAPI.history({ limit: 500 }).then(vr => {
-        const vs = vr.data?.data?.violations ?? vr.data?.data ?? vr.data ?? [];
+      // Per-zone totals over ALL violations (the history endpoint is paginated)
+      violationAPI.summary().then(sr => {
         const counts = {};
-        (Array.isArray(vs) ? vs : []).forEach(v => {
-          if (v.geofence_name) counts[v.geofence_name] = (counts[v.geofence_name] || 0) + 1;
-        });
+        (sr.data?.data?.by_zone ?? []).forEach(z => { counts[z.geofence_id] = z.count; });
         setViolationCounts(counts);
       }).catch(() => setViolationCounts({}));
     }).catch(() => { setGeofences([]); setListError(true); }).finally(() => setListLoading(false));
@@ -141,7 +141,7 @@ export default function Geofences() {
       setPoints([]);
       setDrawing(false);
       load();
-    } catch { toast.error("Failed to create zone"); }
+    } catch (err) { toast.error(apiErrorMessage(err, "Failed to create zone")); }
     finally { setLoading(false); }
   };
 
@@ -160,7 +160,7 @@ export default function Geofences() {
           </div>
         </div>
         <div className="gt-geo-actions" style={{ display:"flex", gap:8, alignItems:"center" }}>
-          {!drawing ? (
+          {!canWrite ? null : !drawing ? (
             <button className="btn-primary" onClick={startDrawing}
               style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", borderRadius:"var(--r-md)", fontSize:13, fontWeight:600 }}>
               <MousePointer2 size={14} /> Start Drawing
@@ -315,8 +315,8 @@ export default function Geofences() {
                     <div title={zoneName(g)} style={{ fontSize:13.5, fontWeight:700, color:"var(--text-1)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{zoneName(g)}</div>
                     <div style={{ fontSize:12, color:"var(--text-3)", marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{g.coordinates?.length||0} vertices · {g.category}</div>
                   </div>
-                  {violationCounts[zoneName(g)] > 0 && (
-                    <span style={{ flexShrink:0, minWidth:20, textAlign:"center", padding:"1px 7px", borderRadius:10, background:"#FEE2E2", color:"#B91C1C", fontSize:11, fontWeight:700 }}>{violationCounts[zoneName(g)]}</span>
+                  {violationCounts[g.geofence_id||g.id] > 0 && (
+                    <span style={{ flexShrink:0, minWidth:20, textAlign:"center", padding:"1px 7px", borderRadius:10, background:"#FEE2E2", color:"#B91C1C", fontSize:11, fontWeight:700 }}>{violationCounts[g.geofence_id||g.id]}</span>
                   )}
                   <span className={`badge ${CAT_COLOR[g.category]||"badge-gray"}`} style={{ flexShrink:0 }}>{ZONE_LABELS[g.category]||g.category}</span>
                 </div>

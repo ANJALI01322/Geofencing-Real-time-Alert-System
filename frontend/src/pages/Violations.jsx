@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { vehicleAPI, geofenceAPI, violationAPI } from "../api";
+import { vehicleAPI, geofenceAPI, violationAPI, apiErrorMessage } from "../api";
+import toast from "react-hot-toast";
 import {
   AlertOctagon, ArrowUpRight, ArrowDownRight, Filter,
   RefreshCw, Clock, MapPin, Car, Shield, TrendingUp, Download
@@ -7,6 +8,10 @@ import {
 import { format } from "date-fns";
 import EmptyState from "../components/EmptyState";
 import ErrorState from "../components/ErrorState";
+import Pager from "../components/Pager";
+
+const EXPORT_PAGE = 100;     // the API serves at most 100 rows per request
+const EXPORT_MAX_ROWS = 20000; // safety cap for one CSV file
 
 export default function Violations() {
   const [violations, setViolations] = useState([]);
@@ -17,17 +22,39 @@ export default function Violations() {
   const [lastRefresh, setLastRefresh] = useState(null);
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(false);
+  const [page, setPage] = useState(0);      // zero-based
+  const [total, setTotal] = useState(0);    // rows matching the filters, across all pages
+  const [exporting, setExporting] = useState(false);
+  const pageSize = Number(filters.limit) || 50;
 
-  const load = useCallback(() => {
-    setLoading(true);
-    const params = { limit: filters.limit };
+  // Query params for the current filters (without paging)
+  const filterParams = useCallback(() => {
+    const params = {};
     if (filters.vehicle_id)  params.vehicle_id  = filters.vehicle_id;
     if (filters.geofence_id) params.geofence_id = filters.geofence_id;
     if (filters.event_type)  params.event_type  = filters.event_type;
-    violationAPI.history(params)
+    return params;
+  }, [filters]);
+
+  const fetchPage = useCallback((pg) => {
+    setLoading(true);
+    const request = (n) => violationAPI.history({ ...filterParams(), limit: pageSize, offset: n * pageSize })
       .then(r => {
-        const d = r.data?.data?.violations ?? r.data?.violations ?? r.data?.data ?? r.data;
-        setViolations(Array.isArray(d) ? d : []);
+        const data = r.data?.data;
+        const rows = data?.violations ?? r.data?.violations ?? (Array.isArray(data) ? data : []);
+        const count = Number(data?.total);
+        return { rows: Array.isArray(rows) ? rows : [], all: Number.isFinite(count) ? count : rows.length, n };
+      });
+    request(pg)
+      .then(res => {
+        // The page we asked for no longer exists (rows were removed, or filters narrowed): go to the last one.
+        if (pg > 0 && res.rows.length === 0 && res.all > 0) return request(Math.ceil(res.all / pageSize) - 1);
+        return res;
+      })
+      .then(({ rows, all, n }) => {
+        setPage(n);
+        setViolations(rows);
+        setTotal(all);
         setLastRefresh(new Date());
         setError(false);
       })
@@ -40,7 +67,12 @@ export default function Violations() {
         setStats({ entry: Number(st?.entry) || 0, exit: Number(st?.exit) || 0, speed: Number(st?.speed) || 0 });
       })
       .catch(() => setStats(null));
-  }, [filters]);
+  }, [filterParams, pageSize]);
+
+  const load = useCallback(() => fetchPage(page), [fetchPage, page]);
+  const goToPage = (pg) => { setPage(pg); fetchPage(pg); };
+  const apply = () => { setPage(0); fetchPage(0); };
+  const changeFilter = (patch) => { setFilters(f => ({ ...f, ...patch })); setPage(0); };
 
   useEffect(() => {
     vehicleAPI.list().then(r => {
@@ -77,16 +109,45 @@ export default function Violations() {
   const pending = loading && !lastRefresh && !stats;
   const statSkeleton = <span className="skeleton" style={{ display: "block", width: 56, height: 34 }} />;
 
-  const exportCSV = () => {
-    const cols = ["timestamp", "vehicle_number", "geofence_name", "event_type"];
-    const esc = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
-    const csv = [cols.join(","), ...filtered.map(v => cols.map(c => esc(v[c])).join(","))].join("\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "violations.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+  // Exports EVERY row matching the current filters (not just the visible page), 100 rows per request.
+  const exportCSV = async () => {
+    setExporting(true);
+    const loadingToast = toast.loading("Preparing CSV…");
+    try {
+      const rows = [];
+      let offset = 0;
+      let grand = Infinity;
+      while (offset < grand && rows.length < EXPORT_MAX_ROWS) {
+        const r = await violationAPI.history({ ...filterParams(), limit: EXPORT_PAGE, offset });
+        const d = r.data?.data;
+        const batch = d?.violations ?? [];
+        grand = Number(d?.total) || 0;
+        rows.push(...batch);
+        if (batch.length === 0) break;
+        offset += batch.length;
+        toast.loading(`Preparing CSV… ${rows.length} of ${grand}`, { id: loadingToast });
+      }
+      const cols = ["timestamp", "vehicle_number", "geofence_name", "event_type"];
+      // Quote every cell, and defuse spreadsheet formula injection (=, +, -, @ at the start).
+      const esc = (val) => {
+        let t = String(val ?? "");
+        if (/^[=+\-@\t\r]/.test(t)) t = "'" + t;
+        return `"${t.replace(/"/g, '""')}"`;
+      };
+      const csv = [cols.join(","), ...rows.map(v => cols.map(c => esc(v[c])).join(","))].join("\n");
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "violations.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      const capped = rows.length >= EXPORT_MAX_ROWS && rows.length < grand;
+      toast.success(capped ? `Exported the newest ${rows.length} of ${grand} rows` : `Exported ${rows.length} rows`, { id: loadingToast });
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "CSV export failed"), { id: loadingToast });
+    } finally {
+      setExporting(false);
+    }
   };
 
   const sel = {
@@ -126,9 +187,9 @@ export default function Violations() {
               <Clock size={12} /> Last updated {format(lastRefresh, "HH:mm:ss")}
             </span>
           )}
-          <button onClick={exportCSV} disabled={filtered.length === 0} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1.5px solid var(--border)", background: "var(--surface)", color: "var(--text-2)", fontSize: "0.82rem", fontWeight: 500, cursor: filtered.length === 0 ? "default" : "pointer", fontFamily: "'Inter', sans-serif" }}>
+          <button onClick={exportCSV} disabled={exporting || total === 0} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1.5px solid var(--border)", background: "var(--surface)", color: "var(--text-2)", fontSize: "0.82rem", fontWeight: 500, cursor: exporting || total === 0 ? "default" : "pointer", fontFamily: "'Inter', sans-serif" }}>
             <Download size={13} />
-            Export CSV
+            {exporting ? "Exporting…" : "Export CSV"}
           </button>
           <button onClick={load} disabled={loading} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1.5px solid var(--border)", background: "var(--surface)", color: "var(--text-2)", fontSize: "0.82rem", fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
             <RefreshCw size={13} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
@@ -183,35 +244,36 @@ export default function Violations() {
         <div className="gt-filterrow" style={{ padding: "16px 20px", display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <label style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Vehicle</label>
-            <select style={{ ...sel, minWidth: 200 }} value={filters.vehicle_id} onChange={e => setFilters(f => ({ ...f, vehicle_id: e.target.value }))}>
+            <select style={{ ...sel, minWidth: 200 }} value={filters.vehicle_id} onChange={e => changeFilter({ vehicle_id: e.target.value })}>
               <option value="">All Vehicles</option>
               {vehicles.map(v => <option key={v.vehicle_id || v.id} value={v.vehicle_id || v.id}>{v.vehicle_number} — {v.driver_name}</option>)}
             </select>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <label style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Zone</label>
-            <select style={{ ...sel, minWidth: 180 }} value={filters.geofence_id} onChange={e => setFilters(f => ({ ...f, geofence_id: e.target.value }))}>
+            <select style={{ ...sel, minWidth: 180 }} value={filters.geofence_id} onChange={e => changeFilter({ geofence_id: e.target.value })}>
               <option value="">All Zones</option>
               {geofences.map(g => <option key={g.geofence_id || g.id} value={g.geofence_id || g.id}>{g.geofence_name || g.name}</option>)}
             </select>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <label style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Event Type</label>
-            <select style={{ ...sel, minWidth: 130 }} value={filters.event_type} onChange={e => setFilters(f => ({ ...f, event_type: e.target.value }))}>
+            <select style={{ ...sel, minWidth: 130 }} value={filters.event_type} onChange={e => changeFilter({ event_type: e.target.value })}>
               <option value="">All Events</option>
               <option value="entry">↓ Entry</option>
               <option value="exit">↑ Exit</option>
+              <option value="speed_violation">⚡ Speed</option>
             </select>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <label style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Rows</label>
-            <select style={{ ...sel, minWidth: 100 }} value={filters.limit} onChange={e => setFilters(f => ({ ...f, limit: e.target.value }))}>
+            <select style={{ ...sel, minWidth: 100 }} value={filters.limit} onChange={e => changeFilter({ limit: e.target.value })}>
               <option value={25}>25 rows</option>
               <option value={50}>50 rows</option>
               <option value={100}>100 rows</option>
             </select>
           </div>
-          <button onClick={load} disabled={loading} style={{ padding: "9px 22px", borderRadius: 8, border: "none", background: loading ? "#93C5FD" : "#2563EB", color: "#fff", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", gap: 6, height: 38 }}>
+          <button onClick={apply} disabled={loading} style={{ padding: "9px 22px", borderRadius: 8, border: "none", background: loading ? "#93C5FD" : "#2563EB", color: "#fff", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", gap: 6, height: 38 }}>
             {loading ? <RefreshCw size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Filter size={12} />}
             {loading ? "Loading…" : "Apply"}
           </button>
@@ -227,7 +289,7 @@ export default function Violations() {
             <span style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--text)" }}>Events</span>
           </div>
           <span style={{ fontSize: "0.72rem", fontWeight: 700, color: violations.length > 0 ? "#DC2626" : "var(--text-muted)", background: violations.length > 0 ? "#FEE2E2" : "var(--surface-2)", padding: "3px 10px", borderRadius: 20, border: violations.length > 0 ? "1px solid #FCA5A5" : "1px solid #E5E7EB" }}>
-            {filtered.length} records
+            {total} record{total === 1 ? "" : "s"}
           </span>
         </div>
 
@@ -309,14 +371,8 @@ export default function Violations() {
           </div>
         )}
 
-        {violations.length > 0 && (
-          <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border-soft)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-subtle)" }}>
-            <span style={{ fontSize: "0.73rem", color: "var(--text-faint)" }}>Showing {filtered.length} of {filters.limit} max rows</span>
-            <div style={{ display: "flex", gap: 16 }}>
-              <span style={{ fontSize: "0.73rem", color: "#16A34A", fontWeight: 700 }}>↓ {totalEntry} entries</span>
-              <span style={{ fontSize: "0.73rem", color: "#DC2626", fontWeight: 700 }}>↑ {totalExit} exits</span>
-            </div>
-          </div>
+        {total > 0 && (
+          <Pager page={page} pageSize={pageSize} total={total} onPage={goToPage} loading={loading} />
         )}
       </div>
     </div>

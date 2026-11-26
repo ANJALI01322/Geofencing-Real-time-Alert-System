@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { vehicleAPI, geofenceAPI, alertAPI } from "../api";
+import { vehicleAPI, geofenceAPI, alertAPI, apiErrorMessage } from "../api";
+import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 import { Plus, X, Bell, ChevronRight, Zap } from "lucide-react";
 
@@ -10,6 +11,7 @@ const EVENT_OPTIONS = [
 ];
 
 export default function AlertConfig() {
+  const { canWrite } = useAuth(); // viewers are read-only
   const [vehicles,  setVehicles]  = useState([]);
   const [geofences, setGeofences] = useState([]);
   const [rules,     setRules]     = useState([]);
@@ -36,7 +38,7 @@ export default function AlertConfig() {
       setForm({ vehicle_id: "", geofence_id: "", event_type: "both", speed_limit: "" });
       setShowForm(false);
       alertAPI.list().then(r => { const d = r.data?.data ?? r.data; setRules(Array.isArray(d) ? d : []); });
-    } catch { toast.error("Failed to save rule"); }
+    } catch (err) { toast.error(apiErrorMessage(err, "Failed to save rule")); }
     finally { setLoading(false); }
   };
 
@@ -52,14 +54,16 @@ export default function AlertConfig() {
           </div>
           <p className="page-sub">{rules.length} rule{rules.length !== 1 ? "s" : ""} configured · geofence trigger policies</p>
         </div>
-        <button className="btn-ghost" onClick={() => setShowForm(s => !s)}>
-          {showForm ? <X size={14} /> : <Plus size={14} />}
-          {showForm ? "Cancel" : "New Rule"}
-        </button>
+        {canWrite && (
+          <button className="btn-ghost" onClick={() => setShowForm(s => !s)}>
+            {showForm ? <X size={14} /> : <Plus size={14} />}
+            {showForm ? "Cancel" : "New Rule"}
+          </button>
+        )}
       </div>
 
       {/* Form */}
-      {showForm && (
+      {canWrite && showForm && (
         <div className="panel" style={{ marginBottom: 20 }}>
           <div className="panel-header">
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

@@ -34,8 +34,7 @@ func (h *Handler) UpdateLocation(w http.ResponseWriter, r *http.Request) {
 		Latitude  float64 `json:"latitude"`
 		Longitude float64 `json:"longitude"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.respondError(w, http.StatusBadRequest, "Invalid request body", start)
+	if !h.decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -44,12 +43,12 @@ func (h *Handler) UpdateLocation(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, http.StatusBadRequest, "vehicle_id is required", start)
 		return
 	}
-	if req.Latitude < -90 || req.Latitude > 90 {
-		h.respondError(w, http.StatusBadRequest, "latitude must be between -90 and 90", start)
+	if !isUUID(req.VehicleID) {
+		h.respondError(w, http.StatusBadRequest, "vehicle_id must be a valid UUID", start)
 		return
 	}
-	if req.Longitude < -180 || req.Longitude > 180 {
-		h.respondError(w, http.StatusBadRequest, "longitude must be between -180 and 180", start)
+	if err := validateLatLng(req.Latitude, req.Longitude); err != nil {
+		h.respondError(w, http.StatusBadRequest, err.Error(), start)
 		return
 	}
 
@@ -63,7 +62,7 @@ func (h *Handler) UpdateLocation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "Failed to verify vehicle", start)
+		h.serverError(w, "verify vehicle", err)
 		return
 	}
 
@@ -88,7 +87,7 @@ func (h *Handler) UpdateLocation(w http.ResponseWriter, r *http.Request) {
 		RETURNING id, timestamp
 	`, req.VehicleID, req.Latitude, req.Longitude).Scan(&locID, &locTimestamp)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "Failed to store location", start)
+		h.serverError(w, "store location", err)
 		return
 	}
 
@@ -333,6 +332,10 @@ func (h *Handler) processGeofenceTransitions(
 func (h *Handler) GetLocation(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	vehicleID := mux.Vars(r)["vehicle_id"]
+	if !isUUID(vehicleID) {
+		h.respondError(w, http.StatusBadRequest, "vehicle_id must be a valid UUID", start)
+		return
+	}
 
 	// Verify vehicle exists
 	var vehicle models.Vehicle
@@ -346,7 +349,7 @@ func (h *Handler) GetLocation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "Failed to fetch vehicle", start)
+		h.serverError(w, "fetch vehicle", err)
 		return
 	}
 
@@ -367,7 +370,7 @@ func (h *Handler) GetLocation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "Failed to fetch location", start)
+		h.serverError(w, "fetch location", err)
 		return
 	}
 

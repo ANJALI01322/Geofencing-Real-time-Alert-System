@@ -2,9 +2,10 @@ import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Radio, Truck, Hexagon, MoreHorizontal,
-  Bell, AlertOctagon, BarChart3, Sun, Moon,
+  Bell, AlertOctagon, BarChart3, Sun, Moon, LogOut, UserRound,
 } from "lucide-react";
 import { useTheme } from "../theme";
+import { useAuth } from "../context/AuthContext";
 
 const TABS = [
   { to: "/dashboard",     icon: LayoutDashboard, label: "Dashboard" },
@@ -24,6 +25,7 @@ export default function BottomNav() {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
   const { theme, toggle } = useTheme();
+  const { user, role, logout } = useAuth();
   const moreActive = MORE.some(m => pathname.startsWith(m.to));
   const close = () => setOpen(false);
 
@@ -48,6 +50,13 @@ export default function BottomNav() {
       <div id="gt-more-sheet" className={`gt-more-sheet${open ? " show" : ""}`}
         role="dialog" aria-label="More" aria-hidden={!open}>
         <div className="gt-grabber" />
+        {user && (
+          <div className="gt-more-user">
+            <UserRound size={18} />
+            <span className="gt-more-email">{user.email}</span>
+            <span className={`gt-role ${role}`}>{role}</span>
+          </div>
+        )}
         {MORE.map(({ to, icon: Icon, label }) => (
           <NavLink key={to} to={to} onClick={close}
             className={({ isActive }) => `gt-more-item${isActive ? " active" : ""}`}>
@@ -59,6 +68,10 @@ export default function BottomNav() {
         <button type="button" className="gt-more-item" onClick={toggle}>
           {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
           <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+        </button>
+        <button type="button" className="gt-more-item gt-more-danger" onClick={() => { close(); logout(); }}>
+          <LogOut size={20} />
+          <span>Sign out</span>
         </button>
       </div>
     </>

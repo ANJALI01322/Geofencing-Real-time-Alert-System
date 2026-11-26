@@ -1,6 +1,7 @@
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from "react";
 import { useAlertSocket } from "../context/AlertSocketContext";
+import { useAuth } from "../context/AuthContext";
 import { MapContainer, TileLayer, Marker, Popup, Polygon, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -35,6 +36,7 @@ function FlyTo({ pos }) {
 }
 
 export default function LiveTracking() {
+  const { canWrite } = useAuth(); // viewers cannot send GPS updates
   const [vehicles, setVehicles] = useState([]);
   const [vState, setVState] = useState("loading"); // loading | ok | error
   const [sheetOpen, setSheetOpen] = useState(false); // phone: vehicle list bottom sheet
@@ -106,8 +108,24 @@ export default function LiveTracking() {
       .catch(() => {});
   }, []);
 
-  // GPS simulation — sends to backend for geofence detection & violations
+  // Viewers are read-only: instead of simulating, follow the latest positions stored by the server
   useEffect(() => {
+    if (canWrite || vehicles.length === 0) return undefined;
+    let stop = false;
+    const poll = () => vehicles.forEach((v) => {
+      locationAPI.get(v.vehicle_id).then((r) => {
+        const c = r.data?.data?.current_location;
+        if (!stop && c) setPositions((p) => ({ ...p, [v.vehicle_id]: { lat: c.latitude, lng: c.longitude } }));
+      }).catch(() => {});
+    });
+    poll();
+    const t = setInterval(poll, 5000);
+    return () => { stop = true; clearInterval(t); };
+  }, [canWrite, vehicles]);
+
+  // GPS simulation — sends to backend for geofence detection & violations (admin only)
+  useEffect(() => {
+    if (!canWrite) return undefined;
     simRef.current = setInterval(() => {
       setPositions((prev) => {
         const next = {};
@@ -124,7 +142,7 @@ export default function LiveTracking() {
       });
     }, 2000);
     return () => clearInterval(simRef.current);
-  }, []);
+  }, [canWrite]);
 
   // React to alerts from the shared WebSocket (positions + toasts)
   useEffect(() => {

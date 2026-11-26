@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useAuth } from "./AuthContext";
+import { isExpired } from "../auth/session";
 
 /**
  * Resolve the WebSocket URL:
@@ -23,6 +25,8 @@ const AlertSocketContext = createContext(null);
 /**
  * AlertSocketProvider owns the app's single WebSocket connection.
  *
+ * - connects only while signed in; the JWT is sent as ?token= (browsers cannot set headers on a
+ *   WebSocket) and the connection is closed on sign-out
  * - status: "connecting" | "connected" | "disconnected"
  * - reconnects automatically with exponential backoff: 1s, 2s, 4s, 8s, then 15s max
  * - lastAlert / alertHistory: the most recent events pushed by the server
@@ -31,8 +35,15 @@ export function AlertSocketProvider({ children }) {
   const [status, setStatus] = useState("connecting");
   const [lastAlert, setLastAlert] = useState(null);
   const [alertHistory, setAlertHistory] = useState([]);
+  const { token } = useAuth();
 
   useEffect(() => {
+    if (!token) {
+      setStatus("disconnected");
+      setAlertHistory([]);
+      setLastAlert(null);
+      return undefined;
+    }
     let disposed = false;
     let ws = null;
     let timer = null;
@@ -40,8 +51,10 @@ export function AlertSocketProvider({ children }) {
 
     const connect = () => {
       if (disposed) return;
+      // An expired token would be refused (401) forever; AuthProvider signs the user out instead.
+      if (isExpired(token)) { setStatus("disconnected"); return; }
       setStatus("connecting");
-      ws = new WebSocket(WS_URL);
+      ws = new WebSocket(`${WS_URL}${WS_URL.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}`);
 
       ws.onopen = () => {
         if (disposed) return;
@@ -76,7 +89,7 @@ export function AlertSocketProvider({ children }) {
       clearTimeout(timer);
       ws?.close();
     };
-  }, []);
+  }, [token]);
 
   const value = useMemo(
     () => ({ status, connected: status === "connected", lastAlert, alertHistory }),

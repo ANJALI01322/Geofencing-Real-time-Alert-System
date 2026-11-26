@@ -1,5 +1,6 @@
 import axios from "axios";
 import toast from "react-hot-toast";
+import { clearSession, getToken, UNAUTHORIZED_EVENT } from "../auth/session";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
@@ -7,6 +8,24 @@ const api = axios.create({
   baseURL: BASE_URL,
   headers: { "Content-Type": "application/json" },
   timeout: 30000, // Render's free tier can take ~30s to wake from sleep
+});
+
+/**
+ * The human-readable message of an API error: {"error":{"code","message"}} from the server,
+ * or `fallback` when the request never got a response.
+ */
+export function apiErrorMessage(err, fallback = "Something went wrong") {
+  const e = err?.response?.data?.error;
+  if (e && typeof e === "object" && e.message) return e.message;
+  if (typeof e === "string" && e) return e;
+  return fallback;
+}
+
+// ── Auth: send the JWT on every request ──
+api.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
 });
 
 // ── Resilience: retry idempotent GETs and tell the user what is happening ──
@@ -26,6 +45,15 @@ api.interceptors.response.use(
   async (err) => {
     const config = err.config;
     const status = err.response?.status;
+
+    // Expired / invalid token: drop the session and let the app send the user to /login.
+    // (A failed sign-in attempt is also a 401 but is handled by the login form itself.)
+    if (status === 401 && !config?.url?.includes("/auth/login")) {
+      clearSession();
+      window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+      return Promise.reject(err);
+    }
+
     const noResponse = !err.response && err.code !== "ERR_CANCELED"; // network error / timeout / CORS
     const serverError = status >= 500;
     if (!config || !(noResponse || serverError)) return Promise.reject(err);
@@ -50,6 +78,12 @@ api.interceptors.response.use(
     return Promise.reject(err);
   }
 );
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+export const authAPI = {
+  login: (email, password) => api.post("/auth/login", { email, password }),
+  me:    ()                => api.get("/auth/me"),
+};
 
 // ── Vehicles ──────────────────────────────────────────────────────────────────
 export const vehicleAPI = {
@@ -79,6 +113,8 @@ export const alertAPI = {
 export const violationAPI = {
   history: (params) => api.get("/violations/history", { params }),
   stats:   ()       => api.get("/violations/stats"),
+  // Per-zone and per-vehicle counts over ALL rows (history itself is paginated, max 100/page)
+  summary: ()       => api.get("/violations/summary"),
 };
 
 // ── Health ────────────────────────────────────────────────────────────────────

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -20,17 +19,25 @@ func (h *Handler) ConfigureAlert(w http.ResponseWriter, r *http.Request) {
 		VehicleID  *string `json:"vehicle_id"`
 		EventType  string  `json:"event_type"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.respondError(w, http.StatusBadRequest, "Invalid request body", start)
+	if !h.decodeJSON(w, r, &req) {
 		return
 	}
 
-	if strings.TrimSpace(req.GeofenceID) == "" {
+	req.GeofenceID = strings.TrimSpace(req.GeofenceID)
+	if req.GeofenceID == "" {
 		h.respondError(w, http.StatusBadRequest, "geofence_id is required", start)
 		return
 	}
-	if req.EventType != "entry" && req.EventType != "exit" && req.EventType != "both" {
+	if !isUUID(req.GeofenceID) {
+		h.respondError(w, http.StatusBadRequest, "geofence_id must be a valid UUID", start)
+		return
+	}
+	if !alertEventTypes[req.EventType] {
 		h.respondError(w, http.StatusBadRequest, "event_type must be 'entry', 'exit', or 'both'", start)
+		return
+	}
+	if req.VehicleID != nil && strings.TrimSpace(*req.VehicleID) != "" && !isUUID(strings.TrimSpace(*req.VehicleID)) {
+		h.respondError(w, http.StatusBadRequest, "vehicle_id must be a valid UUID", start)
 		return
 	}
 
@@ -41,7 +48,7 @@ func (h *Handler) ConfigureAlert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "Failed to verify geofence", start)
+		h.serverError(w, "verify geofence", err)
 		return
 	}
 
@@ -53,7 +60,7 @@ func (h *Handler) ConfigureAlert(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err != nil {
-			h.respondError(w, http.StatusInternalServerError, "Failed to verify vehicle", start)
+			h.serverError(w, "verify vehicle", err)
 			return
 		}
 	} else {
@@ -70,7 +77,7 @@ func (h *Handler) ConfigureAlert(w http.ResponseWriter, r *http.Request) {
 		Scan(&rule.ID, &rule.GeofenceID, &vehicleIDScan, &rule.EventType, &rule.CreatedAt)
 
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "Failed to configure alert: "+err.Error(), start)
+		h.serverError(w, "configure alert", err)
 		return
 	}
 
@@ -90,6 +97,14 @@ func (h *Handler) ListAlerts(w http.ResponseWriter, r *http.Request) {
 
 	geofenceID := r.URL.Query().Get("geofence_id")
 	vehicleID := r.URL.Query().Get("vehicle_id")
+	if geofenceID != "" && !isUUID(geofenceID) {
+		h.respondError(w, http.StatusBadRequest, "geofence_id must be a valid UUID", start)
+		return
+	}
+	if vehicleID != "" && !isUUID(vehicleID) {
+		h.respondError(w, http.StatusBadRequest, "vehicle_id must be a valid UUID", start)
+		return
+	}
 
 	query := `
 		SELECT ar.id, ar.geofence_id, ar.vehicle_id, ar.event_type, ar.created_at,
@@ -117,7 +132,7 @@ func (h *Handler) ListAlerts(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := h.DB.Query(query, args...)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "Failed to fetch alerts", start)
+		h.serverError(w, "list alerts", err)
 		return
 	}
 	defer rows.Close()

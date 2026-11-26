@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
-import { vehicleAPI, geofenceAPI, alertAPI } from "../api";
+import { vehicleAPI, geofenceAPI, alertAPI, apiErrorMessage } from "../api";
+import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
-import { Bell } from "lucide-react";
+import { Bell, Lock } from "lucide-react";
 import EmptyState from "../components/EmptyState";
 import ErrorState from "../components/ErrorState";
 
@@ -10,6 +11,7 @@ const label = { fontSize: "0.68rem", fontWeight: 700, color: "var(--text-muted)"
 const input = { fontFamily: "'Inter', sans-serif", fontSize: "0.82rem", padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8, background: "var(--surface)", color: "var(--text-2)", outline: "none", minWidth: 200 };
 
 export default function AlertRules() {
+  const { canWrite } = useAuth(); // viewers can read rules but not create them
   const [vehicles, setVehicles] = useState([]);
   const [geofences, setGeofences] = useState([]);
   const [rules, setRules] = useState([]);
@@ -51,8 +53,8 @@ export default function AlertRules() {
       toast.success("Alert rule saved");
       setForm(f => ({ ...f, vehicle_id: "", geofence_id: "" }));
       loadRules();
-    } catch {
-      toast.error("Failed to save alert rule");
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Failed to save alert rule"));
     } finally {
       setSaving(false);
     }
@@ -70,7 +72,11 @@ export default function AlertRules() {
         </div>
       </div>
 
-      <form onSubmit={save} className="gt-filterrow" style={{ ...card, padding: "18px 20px", display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 20 }}>
+      {!canWrite && (
+        <div className="gt-readonly-note"><Lock size={15} /> Read-only account: you can view alert rules but not create them.</div>
+      )}
+
+      {canWrite && <form onSubmit={save} className="gt-filterrow" style={{ ...card, padding: "18px 20px", display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 20 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
           <label style={label}>Vehicle</label>
           <select style={input} value={form.vehicle_id} onChange={e => setForm(f => ({ ...f, vehicle_id: e.target.value }))}>
@@ -96,7 +102,7 @@ export default function AlertRules() {
         <button type="submit" disabled={saving} style={{ padding: "9px 22px", borderRadius: 8, border: "none", background: saving ? "#93C5FD" : "#2563EB", color: "#fff", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", fontFamily: "'Inter', sans-serif", height: 38 }}>
           {saving ? "Saving…" : "Save"}
         </button>
-      </form>
+      </form>}
 
       <div style={{ ...card, overflow: "hidden" }}>
         <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border-soft)", fontSize: "0.88rem", fontWeight: 600, color: "var(--text)" }}>

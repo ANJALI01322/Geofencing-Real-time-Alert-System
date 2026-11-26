@@ -2,10 +2,11 @@ package handlers
 
 import (
 	"database/sql"
-	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/lib/pq"
 
 	"geotrack/models"
 )
@@ -20,43 +21,29 @@ func (h *Handler) CreateVehicle(w http.ResponseWriter, r *http.Request) {
 		VehicleType   string `json:"vehicle_type"`
 		PhoneNumber   string `json:"phone_number"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.respondError(w, http.StatusBadRequest, "Invalid request body", start)
+	if !h.decodeJSON(w, r, &req) {
 		return
 	}
 
-	// Validate required fields
-	if strings.TrimSpace(req.VehicleNumber) == "" {
-		h.respondError(w, http.StatusBadRequest, "vehicle_number is required", start)
-		return
-	}
-	if strings.TrimSpace(req.DriverName) == "" {
-		h.respondError(w, http.StatusBadRequest, "driver_name is required", start)
-		return
-	}
-	if strings.TrimSpace(req.VehicleType) == "" {
-		h.respondError(w, http.StatusBadRequest, "vehicle_type is required", start)
-		return
-	}
-	if false && strings.TrimSpace(req.PhoneNumber) == "" {
-		h.respondError(w, http.StatusBadRequest, "phone_number is required", start)
+	in, err := validateVehicle(req.VehicleNumber, req.DriverName, req.VehicleType, req.PhoneNumber)
+	if err != nil {
+		h.respondError(w, http.StatusBadRequest, err.Error(), start)
 		return
 	}
 
 	var v models.Vehicle
-	err := h.DB.QueryRow(`
+	err = h.DB.QueryRow(`
 		INSERT INTO vehicles (vehicle_number, driver_name, vehicle_type, phone_number)
 		VALUES ($1, $2, $3, $4)
 		RETURNING id, vehicle_number, driver_name, vehicle_type, phone_number, created_at, updated_at
-	`, req.VehicleNumber, req.DriverName, req.VehicleType, req.PhoneNumber).
+	`, in.Number, in.Driver, in.Type, in.Phone).
 		Scan(&v.ID, &v.VehicleNumber, &v.DriverName, &v.VehicleType, &v.PhoneNumber, &v.CreatedAt, &v.UpdatedAt)
-
 	if err != nil {
-		if strings.Contains(err.Error(), "unique") || strings.Contains(err.Error(), "duplicate") {
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
 			h.respondError(w, http.StatusConflict, "Vehicle number already registered", start)
-		} else {
-			h.respondError(w, http.StatusInternalServerError, "Failed to register vehicle: "+err.Error(), start)
+			return
 		}
+		h.serverError(w, "create vehicle", err)
 		return
 	}
 
@@ -73,7 +60,7 @@ func (h *Handler) ListVehicles(w http.ResponseWriter, r *http.Request) {
 		ORDER BY created_at DESC
 	`)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "Failed to fetch vehicles", start)
+		h.serverError(w, "list vehicles", err)
 		return
 	}
 	defer rows.Close()
@@ -93,12 +80,12 @@ func (h *Handler) ListVehicles(w http.ResponseWriter, r *http.Request) {
 	}, start)
 }
 
-// GetVehicle handles GET /vehicles/{vehicle_id}
+// GetVehicle fetches one vehicle by id (query param vehicle_id). Not routed by default.
 func (h *Handler) GetVehicle(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	vehicleID := r.URL.Query().Get("vehicle_id")
-	if vehicleID == "" {
-		h.respondError(w, http.StatusBadRequest, "vehicle_id is required", start)
+	vehicleID := strings.TrimSpace(r.URL.Query().Get("vehicle_id"))
+	if vehicleID == "" || !isUUID(vehicleID) {
+		h.respondError(w, http.StatusBadRequest, "vehicle_id must be a valid UUID", start)
 		return
 	}
 
@@ -113,7 +100,7 @@ func (h *Handler) GetVehicle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "Failed to fetch vehicle", start)
+		h.serverError(w, "get vehicle", err)
 		return
 	}
 

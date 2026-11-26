@@ -1,10 +1,17 @@
-// Package db manages the PostgreSQL connection and schema migrations.
+// Package db manages the PostgreSQL connection and versioned schema migrations.
 package db
 
 import (
+	"context"
 	"database/sql"
+	"embed"
+	"fmt"
+	"io/fs"
 	"log"
 	"os"
+	"regexp"
+	"sort"
+	"strconv"
 
 	_ "github.com/lib/pq" // PostgreSQL driver
 )
@@ -28,8 +35,9 @@ func Init() {
 	DB.SetMaxOpenConns(25)
 	DB.SetMaxIdleConns(25)
 
+	// Never print the DSN: it contains the database password.
 	if err = DB.Ping(); err != nil {
-		log.Fatalf("❌ Cannot connect to database: %v\nDSN: %s", err, dsn)
+		log.Fatalf("❌ Cannot connect to database: %v", err)
 	}
 
 	log.Println("✅ Database connected successfully")
@@ -42,89 +50,126 @@ func Close() {
 	}
 }
 
-// RunMigrations applies the SQL migration script embedded below.
-// Using IF NOT EXISTS ensures it is safe to run multiple times.
-func RunMigrations() {
-	_, err := DB.Exec(migrationSQL)
-	if err != nil {
-		log.Printf("⚠️  Migration warning (may be safe to ignore if tables exist): %v", err)
-		return
-	}
-	log.Println("✅ Database migrations applied")
+//go:embed migrations/*.sql
+var migrationFS embed.FS
+
+// migrationLockID is the Postgres advisory-lock key that serialises migration runs, so two
+// instances starting at once (a rolling deploy) cannot apply the same migration twice.
+const migrationLockID = 727274
+
+// Migration is one versioned SQL file: migrations/NNNN_name.sql.
+type Migration struct {
+	Version int
+	Name    string
+	SQL     string
 }
 
-// migrationSQL contains the full schema definition.
-const migrationSQL = `
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+var migrationName = regexp.MustCompile(`^(\d{4})_([a-z0-9_]+)\.sql$`)
 
-CREATE TABLE IF NOT EXISTS vehicles (
-    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    vehicle_number VARCHAR(50)  UNIQUE NOT NULL,
-    driver_name    VARCHAR(100) NOT NULL,
-    vehicle_type   VARCHAR(50)  NOT NULL,
-    phone_number   VARCHAR(20)  NOT NULL,
-    created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_vehicles_number ON vehicles(vehicle_number);
+// LoadMigrations reads and validates the migration files in dir: names must look like
+// 0001_something.sql, and versions must be unique. They are returned in version order.
+func LoadMigrations(fsys fs.FS, dir string) ([]Migration, error) {
+	entries, err := fs.ReadDir(fsys, dir)
+	if err != nil {
+		return nil, err
+	}
+	var out []Migration
+	seen := map[int]string{}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		m := migrationName.FindStringSubmatch(e.Name())
+		if m == nil {
+			return nil, fmt.Errorf("migration file %q must be named NNNN_name.sql", e.Name())
+		}
+		version, _ := strconv.Atoi(m[1])
+		if prev, dup := seen[version]; dup {
+			return nil, fmt.Errorf("migration version %04d used twice (%s, %s)", version, prev, e.Name())
+		}
+		seen[version] = e.Name()
+		body, err := fs.ReadFile(fsys, dir+"/"+e.Name())
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, Migration{Version: version, Name: m[2], SQL: string(body)})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Version < out[j].Version })
+	return out, nil
+}
 
-CREATE TABLE IF NOT EXISTS geofences (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name        VARCHAR(100) NOT NULL,
-    description TEXT,
-    coordinates JSONB        NOT NULL,
-    category    VARCHAR(50)  NOT NULL CHECK (category IN ('delivery_zone','restricted_zone','toll_zone','customer_area')),
-    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_geofences_category ON geofences(category);
+// RunMigrations applies every migration that has not been applied yet, in order. Each one runs
+// in its own transaction together with its schema_migrations record, so a failure leaves the
+// database at the last good version. The caller should treat an error as fatal.
+func RunMigrations() error {
+	migrations, err := LoadMigrations(migrationFS, "migrations")
+	if err != nil {
+		return err
+	}
+	return Migrate(context.Background(), DB, migrations)
+}
 
-CREATE TABLE IF NOT EXISTS vehicle_locations (
-    id         UUID             PRIMARY KEY DEFAULT gen_random_uuid(),
-    vehicle_id UUID             NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
-    latitude   DOUBLE PRECISION NOT NULL,
-    longitude  DOUBLE PRECISION NOT NULL,
-    timestamp  TIMESTAMPTZ      NOT NULL DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_vl_vehicle   ON vehicle_locations(vehicle_id);
-CREATE INDEX IF NOT EXISTS idx_vl_timestamp ON vehicle_locations(timestamp DESC);
+// Migrate applies the given migrations to the database.
+func Migrate(ctx context.Context, db *sql.DB, migrations []Migration) error {
+	// A dedicated connection holds the advisory lock for the whole run.
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("migrations: get connection: %w", err)
+	}
+	defer conn.Close()
 
-CREATE TABLE IF NOT EXISTS alert_rules (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    geofence_id UUID         NOT NULL REFERENCES geofences(id) ON DELETE CASCADE,
-    vehicle_id  UUID         REFERENCES vehicles(id) ON DELETE CASCADE,
-    event_type  VARCHAR(10)  NOT NULL CHECK (event_type IN ('entry','exit','both')),
-    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_ar_geofence ON alert_rules(geofence_id);
-CREATE INDEX IF NOT EXISTS idx_ar_vehicle  ON alert_rules(vehicle_id);
+	if _, err := conn.ExecContext(ctx, `SELECT pg_advisory_lock($1)`, migrationLockID); err != nil {
+		return fmt.Errorf("migrations: acquire lock: %w", err)
+	}
+	defer conn.ExecContext(context.Background(), `SELECT pg_advisory_unlock($1)`, migrationLockID)
 
-CREATE TABLE IF NOT EXISTS violations (
-    id          UUID             PRIMARY KEY DEFAULT gen_random_uuid(),
-    vehicle_id  UUID             NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
-    geofence_id UUID             NOT NULL REFERENCES geofences(id) ON DELETE CASCADE,
-    event_type  VARCHAR(10)      NOT NULL CHECK (event_type IN ('entry','exit')),
-    latitude    DOUBLE PRECISION NOT NULL,
-    longitude   DOUBLE PRECISION NOT NULL,
-    timestamp   TIMESTAMPTZ      NOT NULL DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_viol_vehicle   ON violations(vehicle_id);
-CREATE INDEX IF NOT EXISTS idx_viol_geofence  ON violations(geofence_id);
-CREATE INDEX IF NOT EXISTS idx_viol_timestamp ON violations(timestamp DESC);
+	if _, err := conn.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS schema_migrations (
+			version    INTEGER     PRIMARY KEY,
+			name       TEXT        NOT NULL,
+			applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`); err != nil {
+		return fmt.Errorf("migrations: create schema_migrations: %w", err)
+	}
 
-CREATE OR REPLACE FUNCTION update_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
-$$ LANGUAGE plpgsql;
+	applied := map[int]bool{}
+	rows, err := conn.QueryContext(ctx, `SELECT version FROM schema_migrations`)
+	if err != nil {
+		return fmt.Errorf("migrations: read applied versions: %w", err)
+	}
+	for rows.Next() {
+		var v int
+		if err := rows.Scan(&v); err == nil {
+			applied[v] = true
+		}
+	}
+	rows.Close()
 
-DROP TRIGGER IF EXISTS trig_vehicles_upd  ON vehicles;
-DROP TRIGGER IF EXISTS trig_geofences_upd ON geofences;
-CREATE TRIGGER trig_vehicles_upd  BEFORE UPDATE ON vehicles  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-CREATE TRIGGER trig_geofences_upd BEFORE UPDATE ON geofences FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- Allow speed violations (no geofence, longer event_type)
-ALTER TABLE violations ALTER COLUMN event_type TYPE VARCHAR(20);
-ALTER TABLE violations ALTER COLUMN geofence_id DROP NOT NULL;
-ALTER TABLE violations DROP CONSTRAINT IF EXISTS violations_event_type_check;
-ALTER TABLE violations ADD CONSTRAINT violations_event_type_check CHECK (event_type IN ('entry','exit','speed_violation'));
-`
+	count := 0
+	for _, m := range migrations {
+		if applied[m.Version] {
+			continue
+		}
+		tx, err := conn.BeginTx(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("migration %04d_%s: begin: %w", m.Version, m.Name, err)
+		}
+		if _, err := tx.ExecContext(ctx, m.SQL); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("migration %04d_%s failed: %w", m.Version, m.Name, err)
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations (version, name) VALUES ($1, $2)`, m.Version, m.Name); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("migration %04d_%s: record: %w", m.Version, m.Name, err)
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("migration %04d_%s: commit: %w", m.Version, m.Name, err)
+		}
+		log.Printf("✅ Applied migration %04d_%s", m.Version, m.Name)
+		count++
+	}
+	if count == 0 {
+		log.Println("✅ Database schema is up to date")
+	}
+	return nil
+}

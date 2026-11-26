@@ -644,3 +644,141 @@ h1 { letter-spacing: -0.02em; }
   .gt-geo-map { padding: 12px !important; }
   .gt-geo-panel { margin: 0 12px 12px !important; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   Sign-in page
+   ═══════════════════════════════════════════════════════════ */
+.gt-spin { animation: spin 1s linear infinite; }
+
+.gt-login { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); min-height: 100dvh; background: var(--bg-subtle); }
+
+.gt-login-hero {
+  position: relative; display: flex; flex-direction: column; justify-content: space-between;
+  padding: 40px 48px; color: #E2E8F0; overflow: hidden;
+  background:
+    radial-gradient(520px 320px at 12% 8%, rgba(59,130,246,.38), transparent 70%),
+    radial-gradient(460px 300px at 95% 92%, rgba(34,197,94,.22), transparent 70%),
+    linear-gradient(160deg, #0B1220 0%, #0F172A 100%);
+}
+.gt-login-hero::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background-image: radial-gradient(rgba(148,163,184,.16) 1px, transparent 1px); background-size: 22px 22px;
+  mask-image: linear-gradient(180deg, transparent, #000 30%, #000 70%, transparent);
+}
+.gt-login-hero > * { position: relative; z-index: 1; }
+.gt-login-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: -.01em; color: #fff; }
+.gt-login-pitch h2 { font-size: clamp(1.5rem, 2.4vw, 2.1rem); line-height: 1.2; font-weight: 700; letter-spacing: -.025em; color: #fff; margin: 0 0 28px; max-width: 420px; }
+.gt-login-pitch ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 18px; max-width: 420px; }
+.gt-login-pitch li { display: flex; gap: 14px; align-items: flex-start; }
+.gt-login-pitch li b { display: block; font-size: 14px; font-weight: 600; color: #F1F5F9; }
+.gt-login-pitch li p { margin: 2px 0 0; font-size: 13px; color: #94A3B8; line-height: 1.45; }
+.gt-login-ico { flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #93C5FD; background: rgba(59,130,246,.16); border: 1px solid rgba(147,197,253,.22); }
+.gt-login-hero small { color: #64748B; font-size: 12px; }
+
+.gt-login-main { position: relative; display: flex; align-items: center; justify-content: center; padding: 32px 24px; }
+.gt-login-theme {
+  position: absolute; top: 20px; right: 20px; width: 36px; height: 36px; border-radius: 10px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); background: var(--surface); border: 1px solid var(--border);
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.gt-login-theme:hover { color: var(--text); border-color: var(--border-strong); }
+
+.gt-login-card {
+  width: 100%; max-width: 400px; padding: 32px 30px 28px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow-lg);
+  animation: pageIn 360ms var(--ease) backwards;
+}
+.gt-login-mark { display: none; align-items: center; gap: 10px; margin-bottom: 22px; font-weight: 700; font-size: 16px; color: var(--text); }
+.gt-login-card h1 { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -.025em; color: var(--text); }
+.gt-login-sub { margin: 4px 0 22px; font-size: 14px; color: var(--text-muted); }
+.gt-login-card .form-label { margin-top: 14px; }
+.gt-login-field { position: relative; }
+.gt-login-field > svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-faint); pointer-events: none; }
+.gt-login-field .form-input { height: 44px; padding-left: 38px; padding-right: 42px; font-size: 15px; }
+.gt-login-eye {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border: none; background: none;
+  display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; border-radius: 8px;
+}
+.gt-login-eye:hover { color: var(--text); background: var(--bg-subtle); }
+.gt-login-error {
+  display: flex; align-items: flex-start; gap: 8px; margin-bottom: 4px; padding: 10px 12px; border-radius: 10px;
+  font-size: 13px; line-height: 1.4; color: #B91C1C; background: #FEF2F2; border: 1px solid #FECACA;
+}
+.gt-login-error svg { flex-shrink: 0; margin-top: 1px; }
+.gt-login-submit { width: 100%; justify-content: center; height: 44px; margin-top: 22px; font-size: 14px; border-radius: 10px; }
+.gt-login-demo { width: 100%; justify-content: center; height: 44px; font-size: 14px; border-radius: 10px; }
+.gt-login-or { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: var(--text-faint); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.gt-login-or::before, .gt-login-or::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.gt-login-note { margin: 10px 0 0; text-align: center; font-size: 12px; color: var(--text-muted); line-height: 1.45; }
+
+[data-theme="dark"] .gt-login-error { color: #FCA5A5; background: rgba(220,38,38,.12); border-color: rgba(248,113,113,.3); }
+[data-theme="dark"] .gt-login-card { box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+
+@media (max-width: 900px) {
+  .gt-login { grid-template-columns: 1fr; }
+  .gt-login-hero { display: none; }
+  .gt-login-mark { display: flex; }
+}
+@media (max-width: 480px) {
+  .gt-login-main { padding: 20px 16px; align-items: flex-start; padding-top: max(72px, calc(env(safe-area-inset-top) + 56px)); }
+  .gt-login-card { padding: 26px 20px 22px; border-radius: 16px; box-shadow: var(--shadow-md); }
+  .gt-login-field .form-input { font-size: 16px; } /* no iOS zoom on focus */
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Header: signed-in user + sign out
+   ═══════════════════════════════════════════════════════════ */
+.gt-user { display: flex; align-items: center; gap: 8px; padding-left: 4px; }
+.gt-user-email { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 500; color: var(--text-2); }
+.gt-role { padding: 2px 8px; border-radius: 20px; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; border: 1px solid; }
+.gt-role.admin  { color: #1D4ED8; background: #EFF6FF; border-color: #BFDBFE; }
+.gt-role.viewer { color: #B45309; background: #FFFBEB; border-color: #FDE68A; }
+[data-theme="dark"] .gt-role.admin  { color: #93C5FD; background: rgba(59,130,246,.14); border-color: rgba(147,197,253,.3); }
+[data-theme="dark"] .gt-role.viewer { color: #FCD34D; background: rgba(245,158,11,.12); border-color: rgba(252,211,77,.3); }
+.gt-logout {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 8px; cursor: pointer;
+  font-size: 12.5px; font-weight: 600; font-family: inherit; color: var(--text-2); background: var(--surface); border: 1px solid var(--border);
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.gt-logout:hover { color: var(--danger); border-color: rgba(220,38,38,.35); background: rgba(220,38,38,.05); }
+.gt-readonly-note {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding: 10px 14px; border-radius: 10px;
+  font-size: 13px; color: var(--text-2); background: var(--surface); border: 1px dashed var(--border-strong);
+}
+.gt-readonly-note svg { flex-shrink: 0; color: var(--warning); }
+
+@media (max-width: 1100px) { .gt-user-email { display: none; } }
+@media (max-width: 768px) { .gt-user { display: none; } }
+
+/* Pagination */
+.gt-pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 20px; border-top: 1px solid var(--border-soft); background: var(--bg-subtle); }
+.gt-pager-info { font-size: 12.5px; color: var(--text-muted); }
+.gt-pager-ctl { display: flex; align-items: center; gap: 6px; }
+.gt-pager-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 34px; height: 34px; padding: 0 10px; border-radius: 8px; cursor: pointer;
+  font-size: 13px; font-weight: 600; font-family: inherit; color: var(--text-2); background: var(--surface); border: 1px solid var(--border);
+}
+.gt-pager-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+.gt-pager-btn:disabled { opacity: .45; cursor: default; }
+.gt-pager-btn.active { color: #fff; background: var(--primary); border-color: var(--primary); }
+.gt-pager-gap { padding: 0 4px; color: var(--text-faint); }
+@media (max-width: 768px) {
+  .gt-pager { flex-direction: column; align-items: stretch; padding: 12px 16px; }
+  .gt-pager-ctl { justify-content: center; }
+  .gt-pager-btn { min-height: 44px; min-width: 44px; }
+  .gt-pager-num { display: none; }
+}
+
+@media (max-width: 768px) {
+  .gt-more-user { display: flex; align-items: center; gap: 10px; padding: 4px 12px 10px; color: var(--text-muted); }
+  .gt-more-email { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; color: var(--text); font-weight: 500; }
+  .gt-more-danger { color: var(--danger); }
+}
+
+/* Phones: .page-enter has a fixed height, so .gt-content bottom padding is not part of the scrollable
+   area and the last ~60px of a long page would sit under the bottom nav. Reserve that space inside the page. */
+@media (max-width: 768px) {
+  .gt-page, .page-wrap { padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important; }
+  .gt-geo-root { padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
+}

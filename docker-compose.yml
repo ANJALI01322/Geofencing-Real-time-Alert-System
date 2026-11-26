@@ -27,6 +27,15 @@ services:
     environment:
       DATABASE_URL: "host=postgres port=5432 user=postgres password=postgres dbname=geotrack sslmode=disable"
       PORT: "8080"
+      # Auth. Set these in your shell or a root-level .env file (git-ignored); nothing secret is
+      # stored here. With JWT_SECRET unset the API uses a random per-run secret and warns.
+      JWT_SECRET: "${JWT_SECRET:-}"
+      ADMIN_EMAIL: "${ADMIN_EMAIL:-}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-}"
+      DEMO_VIEWER_EMAIL: "${DEMO_VIEWER_EMAIL:-}"
+      DEMO_VIEWER_PASSWORD: "${DEMO_VIEWER_PASSWORD:-}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:5173}"
+      RETENTION_DAYS: "${RETENTION_DAYS:-7}"
     ports:
       - "8080:8080"
     depends_on:
