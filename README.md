@@ -9,6 +9,23 @@ GeoTrack tracks vehicles on a live map, lets you draw polygon geofences, and rai
 real-time alerts when a vehicle **enters or exits** a zone or **exceeds the speed limit**.
 Alerts are stored in PostgreSQL and pushed to every open browser over a WebSocket.
 
+> ### 🚀 Try it
+>
+> **Live app:** https://geofencing-real-time-alert-system-umber.vercel.app
+>
+> | Read-only demo account | |
+> |---|---|
+> | Email | `viewer@geotrack.demo` |
+> | Password | `GeoTrack-Demo-2026` |
+>
+> Or click **Continue as demo viewer** on the login page. The account can browse everything but cannot change data.
+>
+> ⏳ Free hosting: the first request can take 30–50 seconds while the server wakes up. Please wait.
+
+## Demo video
+
+Demo video: coming soon
+
 ## Live demo
 
 | Part | URL |
@@ -17,8 +34,9 @@ Alerts are stored in PostgreSQL and pushed to every open browser over a WebSocke
 | API (Render) | https://geofencing-real-time-alert-system-h1vz.onrender.com |
 | API health check | https://geofencing-real-time-alert-system-h1vz.onrender.com/health |
 
-> The API runs on Render's free tier and sleeps when idle. The first request after a
-> pause can take ~30 seconds; the UI shows a "Waking up server…" message and retries.
+> Free hosting par pehli request ko 30-50 second lag sakte hain (server wake-up). Kripya intezaar karein.
+>
+> The API runs on Render's free tier and sleeps when idle; the UI shows a "Waking up server…" message and retries.
 
 ## Features
 
@@ -114,16 +132,8 @@ curl -H "Authorization: Bearer $TOKEN" $API/vehicles
 | `admin` | everything: read, register vehicles, draw geofences, create alert rules, send GPS updates |
 | `viewer` | read only (`GET`). Any `POST`/`PUT`/`DELETE` returns `403 FORBIDDEN`; the UI hides those controls |
 
-**Public demo account (read-only):**
-
-| | |
-|---|---|
-| Email | `viewer@geotrack.demo` |
-| Password | `GeoTrack-Demo-2026` |
-
-The login page also has a **Continue as demo viewer** button. This account can only read; admin credentials are
-never published. If you run your own copy, the demo user exists only when you set `DEMO_VIEWER_EMAIL` and
-`DEMO_VIEWER_PASSWORD` (see below).
+The read-only demo account is listed in the **Try it** box at the top. Admin credentials are never published. If you run
+your own copy, the demo user exists only when you set `DEMO_VIEWER_EMAIL` and `DEMO_VIEWER_PASSWORD` (see below).
 
 How it works: `POST /auth/login` checks the bcrypt hash and returns an HS256 JWT valid for **1 hour**
 (`JWT_SECRET` from the environment). The WebSocket cannot send headers from a browser, so it takes the token as
@@ -268,15 +278,27 @@ Existing accounts are never modified by these variables. To reset a password, de
 
 ## Screenshots
 
-Captured from the [live deployment](https://geofencing-real-time-alert-system-umber.vercel.app).
+Captured from the [live deployment](https://geofencing-real-time-alert-system-umber.vercel.app), signed in as the demo viewer.
 
-| Dashboard | Dark mode |
+### Desktop
+
+| Sign in | Dashboard |
 |---|---|
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Dashboard in dark mode](docs/screenshots/dashboard-dark.png) |
+| ![Login page](docs/screenshots/login.png) | ![Dashboard](docs/screenshots/dashboard.png) |
+
+| Dashboard (dark mode) | Live tracking |
+|---|---|
+| ![Dashboard in dark mode](docs/screenshots/dashboard-dark.png) | ![Live tracking map](docs/screenshots/live-tracking.png) |
 
 | Geofences | Violation log |
 |---|---|
 | ![Geofences](docs/screenshots/geofences.png) | ![Violation log](docs/screenshots/violations.png) |
+
+### Mobile (390 × 844)
+
+| Dashboard | Live tracking |
+|---|---|
+| <img src="docs/screenshots/mobile-dashboard.png" width="260" alt="Mobile dashboard"> | <img src="docs/screenshots/mobile-live-tracking.png" width="260" alt="Mobile live tracking"> |
 
 ## Project structure
 
@@ -330,12 +352,10 @@ frontend/src/
   would only broadcast to its own clients).
 - **Geofence checks** scan every zone per update; PostGIS with a spatial index would scale that to thousands of zones.
 
-## Known limitations / future work
+## Future work
 
-- **No user management UI** — accounts come from environment variables; there is no sign-up, password reset or per-organisation data yet.
-- **No token refresh** — you are signed out after an hour. A refresh token (or a short-lived access token + httpOnly cookie) would fix that.
-- **Rate limiter, speed cooldown and WebSocket hub are in memory** — they reset on restart and are not shared across API instances (Redis would fix that).
-- **WebSocket accepts any origin** — it is protected by the token, but `CORS_ORIGINS` is not applied to its origin check.
-- **One shared alert stream** — every client receives every alert; per-user subscriptions would scale better.
-- **Simulated GPS** — locations come from the in-browser simulator (admin only), not real devices.
-- **Free-tier hosting** — cold starts on Render; a paid instance or a keep-alive ping would remove them.
+- **Refresh tokens + httpOnly cookies** — silent session renewal instead of signing out after an hour, and no token in `localStorage`.
+- **Redis pub/sub** — so the WebSocket hub, rate limiter and speed cooldown work across multiple API instances.
+- **PostGIS spatial queries** — spatial indexes instead of scanning every zone on each GPS update.
+- **Prometheus monitoring** — request, latency and WebSocket metrics with alerting.
+- **End-to-end tests** — browser tests (e.g. Playwright) for sign-in, live alerts and the role restrictions.
