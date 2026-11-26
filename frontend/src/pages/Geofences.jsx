@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { MapContainer, TileLayer, Polygon, Polyline, CircleMarker, useMapEvents, Tooltip } from "react-leaflet";
+import { MapContainer, TileLayer, Polygon, Polyline, CircleMarker, useMap, useMapEvents, Tooltip } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { geofenceAPI, violationAPI } from "../api";
 import ErrorState from "../components/ErrorState";
@@ -33,6 +33,53 @@ const zoneName = g => g.name || g.geofence_name || g.zone_name || "Unnamed zone"
 function ClickHandler({ drawing, onPoint }) {
   useMapEvents({ click: e => { if (drawing) onPoint(e.latlng); } });
   return null;
+}
+
+// Labels appear from this zoom level upward; below it they would overlap.
+const LABEL_MIN_ZOOM = 12;
+
+// A point guaranteed to lie inside the polygon (coords are [lat, lng]): take the area
+// centroid's latitude, cut the polygon with that horizontal line and use the middle of the
+// widest inside span. Falls back to the vertex average for degenerate shapes.
+function labelPoint(coords) {
+  const n = coords.length;
+  let a = 0, cx = 0, cy = 0;
+  for (let i = 0; i < n; i++) {
+    const [y1, x1] = coords[i], [y2, x2] = coords[(i + 1) % n];
+    const f = x1 * y2 - x2 * y1;
+    a += f; cx += (x1 + x2) * f; cy += (y1 + y2) * f;
+  }
+  const avg = [coords.reduce((s, c) => s + c[0], 0) / n, coords.reduce((s, c) => s + c[1], 0) / n];
+  if (Math.abs(a) < 1e-12) return avg;
+  const lat = cy / (3 * a);
+  const xs = [];
+  for (let i = 0; i < n; i++) {
+    const [y1, x1] = coords[i], [y2, x2] = coords[(i + 1) % n];
+    if ((y1 > lat) !== (y2 > lat)) xs.push(x1 + ((lat - y1) / (y2 - y1)) * (x2 - x1));
+  }
+  xs.sort((p, q) => p - q);
+  let best = null;
+  for (let i = 0; i + 1 < xs.length; i += 2) {
+    if (!best || xs[i + 1] - xs[i] > best[1] - best[0]) best = [xs[i], xs[i + 1]];
+  }
+  return best ? [lat, (best[0] + best[1]) / 2] : avg;
+}
+
+// Zone names, shown only when zoomed in. Each label sits on a point inside its polygon,
+// is clipped to one line (full name on hover via title) and rises above neighbours on hover.
+function ZoneLabels({ zones }) {
+  const map = useMap();
+  const [zoom, setZoom] = useState(map.getZoom());
+  useMapEvents({ zoomend: () => setZoom(map.getZoom()) });
+  if (zoom < LABEL_MIN_ZOOM) return null;
+  return zones.map(z => (
+    <CircleMarker key={z.id} center={z.at} radius={0} interactive={false}
+      pathOptions={{ opacity: 0, fillOpacity: 0 }}>
+      <Tooltip permanent interactive direction="center" className="zone-tip">
+        <span className="zone-tip-text" title={z.name} style={{ color: z.color }}>{z.name}</span>
+      </Tooltip>
+    </CircleMarker>
+  ));
 }
 
 export default function Geofences() {
@@ -169,13 +216,16 @@ export default function Geofences() {
               const color = polyColor(g.category);
               return (
                 <Polygon key={g.geofence_id||g.id} positions={coords}
-                  pathOptions={{ color, fillColor:color, fillOpacity:0.1, weight:2 }}>
-                  <Tooltip permanent direction="center">
-                    <span style={{ fontFamily:"Inter", fontWeight:700, fontSize:11, color }}>{zoneName(g)}</span>
-                  </Tooltip>
-                </Polygon>
+                  pathOptions={{ color, fillColor:color, fillOpacity:0.1, weight:2 }} />
               );
             })}
+
+            <ZoneLabels zones={geofences.flatMap(g => {
+              const coords = g.coordinates?.map?.(c => Array.isArray(c) ? [c[0], c[1]] : [c.lat, c.lng]);
+              return coords?.length >= 3
+                ? [{ id: g.geofence_id||g.id, name: zoneName(g), color: polyColor(g.category), at: labelPoint(coords) }]
+                : [];
+            })} />
           </MapContainer>
 
           {/* Drawing hint overlay */}
@@ -262,7 +312,7 @@ export default function Geofences() {
                 <div key={g.geofence_id||g.id} className="zone-row">
                   <div style={{ width:10, height:10, borderRadius:"50%", background:color, flexShrink:0 }} />
                   <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13.5, fontWeight:700, color:"var(--text-1)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{zoneName(g)}</div>
+                    <div title={zoneName(g)} style={{ fontSize:13.5, fontWeight:700, color:"var(--text-1)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{zoneName(g)}</div>
                     <div style={{ fontSize:12, color:"var(--text-3)", marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{g.coordinates?.length||0} vertices · {g.category}</div>
                   </div>
                   {violationCounts[zoneName(g)] > 0 && (
