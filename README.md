@@ -13,7 +13,7 @@ Alerts are stored in PostgreSQL and pushed to every open browser over a WebSocke
 
 | Part | URL |
 |---|---|
-| Frontend (Vercel) | _add your Vercel deployment URL here_ |
+| Frontend (Vercel) | https://geofencing-real-time-alert-system-umber.vercel.app |
 | API (Render) | https://geofencing-real-time-alert-system-h1vz.onrender.com |
 | API health check | https://geofencing-real-time-alert-system-h1vz.onrender.com/health |
 
@@ -187,6 +187,8 @@ CI (`.github/workflows/ci.yml`) runs the same checks on every push.
 | `VITE_WS_URL` | no | derived from `VITE_API_URL` | WebSocket URL (`wss://` on HTTPS sites) |
 
 ## Screenshots
+
+Captured from the [live deployment](https://geofencing-real-time-alert-system-umber.vercel.app).
 
 | Dashboard | Dark mode |
 |---|---|
