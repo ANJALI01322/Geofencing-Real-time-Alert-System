@@ -99,10 +99,10 @@ export default function Geofences() {
   };
 
   return (
-    <div style={{ display:"flex", flexDirection:"column", height:"100%", background:"var(--bg-base)", overflow:"hidden" }}>
+    <div className="gt-geo-root" style={{ display:"flex", flexDirection:"column", height:"100%", background:"var(--bg-base)", overflow:"hidden" }}>
 
       {/* Top bar */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"20px 24px 4px", flexShrink:0 }}>
+      <div className="gt-geo-head" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"20px 24px 4px", flexShrink:0 }}>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <div style={{ width:42, height:42, borderRadius:11, background:"#EFF6FF", border:"1px solid #BFDBFE", display:"flex", alignItems:"center", justifyContent:"center" }}>
             <Hexagon size={20} color="#2563EB" strokeWidth={2} />
@@ -112,7 +112,7 @@ export default function Geofences() {
             <p style={{ fontSize:13, color:"var(--text-3)", margin:"2px 0 0" }}>{geofences.length} zone{geofences.length!==1?"s":""} · click map to draw polygons</p>
           </div>
         </div>
-        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+        <div className="gt-geo-actions" style={{ display:"flex", gap:8, alignItems:"center" }}>
           {!drawing ? (
             <button className="btn-primary" onClick={startDrawing}
               style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", borderRadius:"var(--r-md)", fontSize:13, fontWeight:600 }}>
@@ -131,10 +131,10 @@ export default function Geofences() {
         </div>
       </div>
 
-      <div style={{ display:"flex", flex:1, overflow:"hidden" }}>
+      <div className="gt-geo-body" style={{ display:"flex", flex:1, overflow:"hidden" }}>
 
         {/* Map */}
-        <div style={{ flex:1, padding:16, minWidth:0 }}>
+        <div className="gt-geo-map" style={{ flex:1, padding:16, minWidth:0 }}>
         <div style={{ position:"relative", height:"100%", borderRadius:"var(--r-lg)", overflow:"hidden", border:"1px solid var(--border)", boxShadow:"var(--shadow-sm)", cursor: drawing ? "crosshair" : "default" }}>
           <div className="gt-float">
             {geofences.length} zone{geofences.length!==1?"s":""} · {geofences.filter(g=>g.category==="restricted_zone").length} restricted
@@ -194,7 +194,7 @@ export default function Geofences() {
         </div>
 
         {/* Right panel */}
-        <div style={{ width:360, margin:"16px 16px 16px 0", border:"1px solid var(--border)", borderRadius:"var(--r-lg)", boxShadow:"var(--shadow-sm)", display:"flex", flexDirection:"column", background:"var(--surface)", overflow:"hidden" }}>
+        <div className="gt-geo-panel" style={{ width:360, margin:"16px 16px 16px 0", border:"1px solid var(--border)", borderRadius:"var(--r-lg)", boxShadow:"var(--shadow-sm)", display:"flex", flexDirection:"column", background:"var(--surface)", overflow:"hidden" }}>
 
           {/* Create form — shown when drawing or has points */}
           {(drawing || points.length > 0) && (

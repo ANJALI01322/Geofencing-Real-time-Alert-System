@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { AlertSocketProvider, useAlertSocket } from "./context/AlertSocketContext";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
+import BottomNav from "./components/BottomNav";
 import Dashboard from "./pages/Dashboard";
 import Vehicles from "./pages/Vehicles";
 import Geofences from "./pages/Geofences";
@@ -15,14 +15,12 @@ import VehicleStatus from "./pages/VehicleStatus";
 
 function Shell() {
   const { status, alertHistory } = useAlertSocket();
-  const [mobileOpen, setMobileOpen] = useState(false);
   const { pathname } = useLocation();
   return (
     <div className="gt-shell">
-      <Sidebar status={status} mobileOpen={mobileOpen} onNavigate={() => setMobileOpen(false)} />
-      <div className={`gt-overlay${mobileOpen ? " show" : ""}`} onClick={() => setMobileOpen(false)} />
+      <Sidebar status={status} />
       <div className="gt-main">
-        <Header status={status} onMenu={() => setMobileOpen(true)} />
+        <Header status={status} />
         <main className="gt-content">
           <div className="page-enter" key={pathname}>
             <Routes>
@@ -39,6 +37,7 @@ function Shell() {
           </div>
         </main>
       </div>
+      <BottomNav />
     </div>
   );
 }

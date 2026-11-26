@@ -59,7 +59,7 @@ export default function AlertRules() {
   };
 
   return (
-    <div style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-subtle)", fontFamily: "'Inter', sans-serif" }}>
+    <div className="gt-page" style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-subtle)", fontFamily: "'Inter', sans-serif" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
         <div style={{ width: 42, height: 42, borderRadius: 12, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Bell size={20} color="#2563EB" />
@@ -70,7 +70,7 @@ export default function AlertRules() {
         </div>
       </div>
 
-      <form onSubmit={save} style={{ ...card, padding: "18px 20px", display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 20 }}>
+      <form onSubmit={save} className="gt-filterrow" style={{ ...card, padding: "18px 20px", display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 20 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
           <label style={label}>Vehicle</label>
           <select style={input} value={form.vehicle_id} onChange={e => setForm(f => ({ ...f, vehicle_id: e.target.value }))}>
@@ -111,7 +111,7 @@ export default function AlertRules() {
         ) : rules.length === 0 ? (
           <EmptyState icon={Bell} title="No alert rules configured yet" text="Create a rule above to get notified on geofence entry or exit." />
         ) : (
-          <table className="dt">
+          <table className="dt dt-rules">
             <thead>
               <tr style={{ background: "var(--bg-subtle)" }}>
                 {["Vehicle", "Geofence", "Event", "Created"].map(h => (

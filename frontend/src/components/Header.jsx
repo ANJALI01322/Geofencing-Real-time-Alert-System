@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Menu, Search, Clock, Sun, Moon } from "lucide-react";
+import { Search, Clock, Sun, Moon } from "lucide-react";
 import { useTheme } from "../theme";
 
 const TITLES = {
@@ -20,7 +20,7 @@ const LIVE_BADGE = {
   disconnected: { label: "OFFLINE",    cls: " off" },
 };
 
-export default function Header({ status = "connecting", onMenu }) {
+export default function Header({ status = "connecting" }) {
   const badge = LIVE_BADGE[status] || LIVE_BADGE.connecting;
   const { pathname } = useLocation();
   const { theme, toggle } = useTheme();
@@ -33,9 +33,8 @@ export default function Header({ status = "connecting", onMenu }) {
   return (
     <header className="gt-header">
       <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-        <button className="gt-hamburger" onClick={onMenu} aria-label="Open menu"><Menu size={18} /></button>
         <div className="gt-crumb">
-          <span>GeoTrack</span><span style={{ opacity: .5 }}>/</span><b>{TITLES[pathname] || "Dashboard"}</b>
+          <span className="gt-crumb-root">GeoTrack <span style={{ opacity: .5, marginLeft: 6 }}>/</span></span><b>{TITLES[pathname] || "Dashboard"}</b>
         </div>
       </div>
       <div className="gt-header-right">

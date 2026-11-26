@@ -107,10 +107,10 @@ export default function Violations() {
   };
 
   return (
-    <div style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-subtle)", fontFamily: "'Inter', sans-serif" }}>
-      <div style={{ height: 3, background: "linear-gradient(90deg,#3B82F6,#22C55E)", margin: "-28px -32px 25px" }} />
+    <div className="gt-page" style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-subtle)", fontFamily: "'Inter', sans-serif" }}>
+      <div className="gt-topbar" style={{ height: 3, background: "linear-gradient(90deg,#3B82F6,#22C55E)", margin: "-28px -32px 25px" }} />
       
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
+      <div className="gt-pagehead" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 42, height: 42, borderRadius: 12, background: "linear-gradient(135deg,#FEE2E2,#FCA5A5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <AlertOctagon size={20} color="#DC2626" />
@@ -137,7 +137,7 @@ export default function Violations() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
+      <div className="gt-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
         <div className="gt-stat" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>TOTAL EVENTS</div>
@@ -180,7 +180,7 @@ export default function Violations() {
           <span style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--text)" }}>Filter Events</span>
           <span style={{ fontSize: "0.73rem", color: "var(--text-faint)", marginLeft: 2 }}>Narrow results by vehicle, zone, or type</span>
         </div>
-        <div style={{ padding: "16px 20px", display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <div className="gt-filterrow" style={{ padding: "16px 20px", display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <label style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Vehicle</label>
             <select style={{ ...sel, minWidth: 200 }} value={filters.vehicle_id} onChange={e => setFilters(f => ({ ...f, vehicle_id: e.target.value }))}>
@@ -226,7 +226,7 @@ export default function Violations() {
             </div>
             <span style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--text)" }}>Events</span>
           </div>
-          <span style={{ fontSize: "0.72rem", fontWeight: 700, color: violations.length > 0 ? "#DC2626" : "#6B7280", background: violations.length > 0 ? "#FEE2E2" : "#F3F4F6", padding: "3px 10px", borderRadius: 20, border: violations.length > 0 ? "1px solid #FCA5A5" : "1px solid #E5E7EB" }}>
+          <span style={{ fontSize: "0.72rem", fontWeight: 700, color: violations.length > 0 ? "#DC2626" : "var(--text-muted)", background: violations.length > 0 ? "#FEE2E2" : "var(--surface-2)", padding: "3px 10px", borderRadius: 20, border: violations.length > 0 ? "1px solid #FCA5A5" : "1px solid #E5E7EB" }}>
             {filtered.length} records
           </span>
         </div>
@@ -245,7 +245,7 @@ export default function Violations() {
           )
         ) : (
           <div style={{ overflowX: "auto" }}>
-            <table className="dt">
+            <table className="dt dt-viol">
               <thead>
                 <tr style={{ background: "var(--bg-subtle)" }}>
                   {["Event", "Vehicle", "Driver", "Zone", "Category", "Coordinates", "Timestamp"].map(h => (
@@ -257,7 +257,7 @@ export default function Violations() {
                 {filtered.map((v, i) => (
                   <tr key={v.event_id || v.id || i}
                     style={{ borderBottom: "1px solid var(--border-soft)" }}
-                    onMouseEnter={e => e.currentTarget.style.background = "#F9FAFB"}
+                    onMouseEnter={e => e.currentTarget.style.background = "var(--bg-subtle)"}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                   >
                     <td style={{ padding: "14px 16px" }}>
@@ -284,7 +284,7 @@ export default function Violations() {
                     <td style={{ padding: "14px 16px" }}>
                       {v.category ? (
                         <span style={{ padding: "3px 9px", borderRadius: 6, fontSize: "0.68rem", fontWeight: 600, background: "#EDE9FE", color: "#6D28D9", border: "1px solid #DDD6FE" }}>{v.category.replace(/_/g, " ")}</span>
-                      ) : <span style={{ color: "#D1D5DB", fontSize: "0.78rem" }}>—</span>}
+                      ) : <span style={{ color: "var(--text-faint)", fontSize: "0.78rem" }}>—</span>}
                     </td>
                     <td style={{ padding: "14px 16px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>

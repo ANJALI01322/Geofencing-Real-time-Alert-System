@@ -12,7 +12,7 @@ const TYPE_STYLE = {
   bike:    { bg: "#F0FDF4", color: "#15803D", border: "#BBF7D0" },
   car:     { bg: "#FFFBEB", color: "#B45309", border: "#FDE68A" },
   bus:     { bg: "#EEF2FF", color: "#4338CA", border: "#C7D2FE" },
-  default: { bg: "#F3F4F6", color: "var(--text-2)", border: "var(--border)" },
+  default: { bg: "var(--surface-2)", color: "var(--text-2)", border: "var(--border)" },
 };
 export default function Vehicles() {
   const [vehicles, setVehicles] = useState([]);
@@ -75,10 +75,10 @@ export default function Vehicles() {
   };
 
   return (
-    <div style={{ padding: "28px 32px", minHeight: "100%", background: "var(--bg-subtle)", fontFamily: "Inter,system-ui,sans-serif" }}>
-      <div style={{ height: 3, background: "linear-gradient(90deg,#3B82F6,#22C55E)", margin: "-28px -32px 25px" }} />
+    <div className="gt-page" style={{ padding: "28px 32px", minHeight: "100%", background: "var(--bg-subtle)", fontFamily: "Inter,system-ui,sans-serif" }}>
+      <div className="gt-topbar" style={{ height: 3, background: "linear-gradient(90deg,#3B82F6,#22C55E)", margin: "-28px -32px 25px" }} />
             {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+      <div className="gt-pagehead" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 42, height: 42, borderRadius: 11, background: "#EFF6FF", border: "1px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Truck size={20} color="#2563EB" strokeWidth={2} />
@@ -100,7 +100,7 @@ export default function Vehicles() {
         {[
           { label: "Total Vehicles", value: vehicles.length, bg: "#EFF6FF", border: "#BFDBFE", color: "#1D4ED8", dot: "#3B82F6" },
           { label: "Active", value: activeCount, bg: "#F0FDF4", border: "#BBF7D0", color: "#15803D", dot: "#22C55E" },
-          { label: "Offline", value: offlineCount, bg: "#F3F4F6", border: "var(--border)", color: "var(--text-2)", dot: "#9CA3AF" },
+          { label: "Offline", value: offlineCount, bg: "var(--surface-2)", border: "var(--border)", color: "var(--text-2)", dot: "#9CA3AF" },
         ].map(s => (
           <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 18px", borderRadius: 10, background: s.bg, border: `1px solid ${s.border}` }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.dot }} />
@@ -111,12 +111,13 @@ export default function Vehicles() {
       </div>
 
       {/* Add form */}
+      {showForm && <div className="gt-sheet-backdrop" onClick={() => setShowForm(false)} />}
       {showForm && (
-        <div className="panel" style={{ marginBottom: 20 }}>
+        <div className="panel gt-sheet-mobile" style={{ marginBottom: 20 }}>
           <div className="panel-header">
             <span className="panel-title">Register New Vehicle</span>
           </div>
-          <form onSubmit={submit} style={{ padding: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <form onSubmit={submit} className="gt-form2" style={{ padding: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <div>
               <label className="form-label">Plate Number *</label>
               <input className="form-input" placeholder="e.g. DL01AB1234" required
@@ -159,7 +160,7 @@ export default function Vehicles() {
             </div>
             <span className="badge badge-amber">Dev Tool</span>
           </div>
-          <div style={{ padding: "14px 20px", display: "flex", gap: 10, alignItems: "center" }}>
+          <div className="gt-simrow" style={{ padding: "14px 20px", display: "flex", gap: 10, alignItems: "center" }}>
             <select className="form-input" style={{ maxWidth: 220 }} value={simVehicle} onChange={e => setSimVehicle(e.target.value)}>
               <option value="">Select vehicle…</option>
               {vehicles.map(v => <option key={vid(v)} value={vid(v)}>{v.vehicle_number}</option>)}
@@ -176,7 +177,7 @@ export default function Vehicles() {
 
       {/* Vehicle cards */}
       {listLoading && vehicles.length === 0 ? (
-        <div className="stagger" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+        <div className="stagger gt-cards" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
           {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 170 }} />)}
         </div>
       ) : listError && vehicles.length === 0 ? (
@@ -193,7 +194,7 @@ export default function Vehicles() {
           </EmptyState>
         </div>
       ) : (
-        <div className="stagger" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+        <div className="stagger gt-cards" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
           {vehicles.map(v => {
             const active = isActive(v);
             const tc = TYPE_STYLE[v.vehicle_type] || TYPE_STYLE.default;
@@ -208,14 +209,14 @@ export default function Vehicles() {
                       <div title={v.vehicle_number} style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--text)", fontFamily: "var(--font-mono)", letterSpacing: "0", lineHeight: 1.15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{v.vehicle_number}</div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
                         <span style={{ width: 8, height: 8, borderRadius: "50%", background: active ? "#22C55E" : "#9CA3AF" }} />
-                        <span style={{ fontSize: "0.68rem", fontWeight: 700, color: active ? "#16A34A" : "#6B7280", letterSpacing: "0.06em" }}>{active ? "ACTIVE" : "OFFLINE"}</span>
+                        <span style={{ fontSize: "0.68rem", fontWeight: 700, color: active ? "#16A34A" : "var(--text-muted)", letterSpacing: "0.06em" }}>{active ? "ACTIVE" : "OFFLINE"}</span>
                       </div>
                     </div>
                   </div>
                   <ChevronRight size={18} color="#9CA3AF" style={{ flexShrink: 0 }} />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.82rem", color: v.driver_name ? "#374151" : "#9CA3AF" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.82rem", color: v.driver_name ? "var(--text-2)" : "var(--text-faint)" }}>
                     <User size={13} color="#9CA3AF" /> {v.driver_name || "No driver assigned"}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.78rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>

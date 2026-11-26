@@ -35,8 +35,8 @@ export default function VehicleStatus() {
   }).sort((a, b) => b.count - a.count);
 
   return (
-    <div style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-subtle)", fontFamily: "'Inter', sans-serif" }}>
-      <div style={{ height: 3, background: "linear-gradient(90deg,#3B82F6,#22C55E)", margin: "-28px -32px 25px" }} />
+    <div className="gt-page" style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-subtle)", fontFamily: "'Inter', sans-serif" }}>
+      <div className="gt-topbar" style={{ height: 3, background: "linear-gradient(90deg,#3B82F6,#22C55E)", margin: "-28px -32px 25px" }} />
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
         <div style={{ width: 42, height: 42, borderRadius: 12, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Truck size={20} color="#2563EB" />
@@ -48,7 +48,7 @@ export default function VehicleStatus() {
       </div>
 
       {loading ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
+        <div className="gt-cards" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
           {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 150 }} />)}
         </div>
       ) : error ? (
@@ -56,7 +56,7 @@ export default function VehicleStatus() {
       ) : cards.length === 0 ? (
         <EmptyState icon={Truck} title="No vehicles registered" text="Add vehicles in Fleet to see their violation status here." />
       ) : (
-        <div className="stagger" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
+        <div className="stagger gt-cards" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
           {cards.map(c => (
             <div key={c._id} className="gt-card" style={{ padding: "18px 20px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>

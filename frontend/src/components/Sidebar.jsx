@@ -28,13 +28,13 @@ const STATUS_PILL = {
   disconnected: { label: "OFFLINE",    cls: " off" },
 };
 
-export default function Sidebar({ status = "connecting", mobileOpen, onNavigate }) {
+export default function Sidebar({ status = "connecting" }) {
   const pill = STATUS_PILL[status] || STATUS_PILL.connecting;
   const [collapsed, setCollapsed] = useState(false);
   const { theme, toggle } = useTheme();
 
   return (
-    <aside className={`gt-sb${collapsed ? " collapsed" : ""}${mobileOpen ? " mobile-open" : ""}`}>
+    <aside className={`gt-sb${collapsed ? " collapsed" : ""}`}>
       <div className="gt-sb-brand">
         <div className="gt-sb-logo"><Satellite size={16} color="#fff" /></div>
         <span className="gt-sb-title gt-txt">GeoTrack</span>
@@ -50,7 +50,7 @@ export default function Sidebar({ status = "connecting", mobileOpen, onNavigate 
           <div key={g.label}>
             <div className="gt-sb-group">{g.label}</div>
             {g.items.map(({ to, icon: Icon, label }) => (
-              <NavLink key={to} to={to} data-tip={label} onClick={onNavigate}
+              <NavLink key={to} to={to} data-tip={label}
                 className={({ isActive }) => `gt-nav${isActive ? " active" : ""}`}>
                 <Icon size={17} strokeWidth={1.9} />
                 <span className="gt-txt">{label}</span>

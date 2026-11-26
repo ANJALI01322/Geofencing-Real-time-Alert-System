@@ -51,9 +51,9 @@ function Badge({type}){
 
 function ViolationRow({v}){
   const ts=v.timestamp||v.triggered_at;
-  return <div style={{display:"grid",gridTemplateColumns:"90px 1fr 1fr 90px",gap:12,alignItems:"center",
+  return <div className="gt-logrow" style={{display:"grid",gridTemplateColumns:"90px 1fr 1fr 90px",gap:12,alignItems:"center",
     padding:"11px 20px",borderBottom:"1px solid var(--border-soft)",fontSize:13,transition:"background 0.18s"}}
-    onMouseEnter={e=>e.currentTarget.style.background="#F8FAFC"}
+    onMouseEnter={e=>e.currentTarget.style.background="var(--bg-subtle)"}
     onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
     <Badge type={v.event_type}/>
     <span style={{color:"var(--text)",fontWeight:600,fontFamily:"var(--font-mono)",fontSize:12.5,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
@@ -83,7 +83,7 @@ function LiveAlertRow({a}){
   const when=new Date(a.timestamp||Date.now());
   return <div style={{display:"flex",alignItems:"center",gap:12,padding:"11px 20px",
     borderBottom:"1px solid var(--border-soft)",fontSize:"0.78rem",transition:"background 0.1s"}}
-    onMouseEnter={e=>e.currentTarget.style.background="#F9FAFB"}
+    onMouseEnter={e=>e.currentTarget.style.background="var(--bg-subtle)"}
     onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
     <Badge type={a.event_type}/>
     <div style={{flex:1,minWidth:0}}>
@@ -170,10 +170,10 @@ export default function Dashboard({alertHistory}){
   const sui=SOCKET_UI[status]||SOCKET_UI.connecting;
 
   return(
-    <div style={{padding:"28px 32px",minHeight:"100%",background:"var(--bg-subtle)",fontFamily:"Inter,system-ui,sans-serif"}}>
-      <div style={{height:3,background:"linear-gradient(90deg,#3B82F6,#22C55E)",margin:"-28px -32px 25px"}}/>
+    <div className="gt-page" style={{padding:"28px 32px",minHeight:"100%",background:"var(--bg-subtle)",fontFamily:"Inter,system-ui,sans-serif"}}>
+      <div className="gt-topbar" style={{height:3,background:"linear-gradient(90deg,#3B82F6,#22C55E)",margin:"-28px -32px 25px"}}/>
 
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:28}}>
+      <div className="gt-pagehead" style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:28}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           <div style={{width:42,height:42,borderRadius:11,background:"#EFF6FF",border:"1px solid #BFDBFE",display:"flex",alignItems:"center",justifyContent:"center"}}>
             <Truck size={20} color="#2563EB" strokeWidth={2}/>
@@ -215,7 +215,7 @@ export default function Dashboard({alertHistory}){
         </div>
       </div>
 
-      <div style={{display:"flex",alignItems:"center",flexWrap:"wrap",gap:8,marginBottom:20}}>
+      <div className="gt-pills" style={{display:"flex",alignItems:"center",flexWrap:"wrap",gap:8,marginBottom:20}}>
         {[
           {label:"System",value:"Operational",color:"#16A34A"},
           {label:"WebSocket",value:sui.label,color:sui.color},
@@ -226,14 +226,14 @@ export default function Dashboard({alertHistory}){
             <i style={{background:s.color}}/>{s.label}: <b style={{color:s.color}}>{s.value}</b>
           </span>
         ))}
-        <span style={{marginLeft:"auto",fontSize:12,color:"var(--text-muted)"}}>Auto-refreshes every 10s</span>
+        <span className="gt-hide-phone" style={{marginLeft:"auto",fontSize:12,color:"var(--text-muted)"}}>Auto-refreshes every 10s</span>
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+      <div className="gt-grid-2" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
         <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:12,boxShadow:"0 1px 3px rgba(0,0,0,0.04)",overflow:"hidden"}}>
           <PanelHeader icon={AlertTriangle} title="Violation Log" iconColor="#D97706"
             badge={<span style={{padding:"3px 10px",borderRadius:20,background:"#FFF7ED",border:"1px solid #FDE68A",fontSize:"0.65rem",fontWeight:700,color:"#B45309"}}>{recentV.length} events</span>}/>
-          <div style={{display:"grid",gridTemplateColumns:"90px 1fr 1fr 90px",gap:12,padding:"7px 20px",background:"var(--bg-subtle)",borderBottom:"1px solid var(--border-soft)"}}>
+          <div className="gt-loghead" style={{display:"grid",gridTemplateColumns:"90px 1fr 1fr 90px",gap:12,padding:"7px 20px",background:"var(--bg-subtle)",borderBottom:"1px solid var(--border-soft)"}}>
             {["Event","Vehicle","Zone","Time"].map(h=><span key={h} style={{fontSize:"0.6rem",fontWeight:700,color:"var(--text-faint)",textTransform:"uppercase",letterSpacing:"0.1em"}}>{h}</span>)}
           </div>
           <div style={{maxHeight:320,overflowY:"auto"}}>

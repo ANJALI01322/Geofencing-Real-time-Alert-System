@@ -43,6 +43,17 @@ export function useTheme() {
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
+  // Several components use this hook; follow the <html> attribute so they all stay in sync
+  useEffect(() => {
+    const el = document.documentElement;
+    const obs = new MutationObserver(() => {
+      const t = el.getAttribute("data-theme");
+      if (t === "light" || t === "dark") setTheme(t);
+    });
+    obs.observe(el, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
+
   const toggle = useCallback(() => {
     const next = theme === "dark" ? "light" : "dark";
     apply(next);

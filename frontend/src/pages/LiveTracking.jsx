@@ -37,6 +37,7 @@ function FlyTo({ pos }) {
 export default function LiveTracking() {
   const [vehicles, setVehicles] = useState([]);
   const [vState, setVState] = useState("loading"); // loading | ok | error
+  const [sheetOpen, setSheetOpen] = useState(false); // phone: vehicle list bottom sheet
   const [geofences, setGeofences] = useState([]);
   const [positions, setPositions] = useState({});
   const [selected, setSelected] = useState(null);
@@ -146,9 +147,13 @@ export default function LiveTracking() {
   const selVehicle = vehicles.find((v) => v.vehicle_id === selected);
 
   return (
-    <div style={{ display: "flex", height: "100%", background: "var(--bg-base)" }}>
+    <div className="gt-lt-root" style={{ display: "flex", height: "100%", background: "var(--bg-base)" }}>
       {/* Sidebar */}
-      <div style={{ width: 260, flexShrink: 0, borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div className={`gt-lt-list${sheetOpen ? " open" : ""}`} style={{ width: 260, flexShrink: 0, borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <button type="button" className="gt-sheet-handle" onClick={() => setSheetOpen(o => !o)}
+          aria-label={sheetOpen ? "Collapse vehicle list" : "Expand vehicle list"} aria-expanded={sheetOpen}>
+          <span />
+        </button>
         <div style={{ padding: "16px 14px 10px", borderBottom: "1px solid var(--border)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
             <Radio size={14} color="var(--blue)" />
@@ -208,7 +213,7 @@ export default function LiveTracking() {
       </div>
 
       {/* Map */}
-      <div style={{ flex: 1, position: "relative" }}>
+      <div className="gt-lt-map" style={{ flex: 1, position: "relative" }}>
         <MapContainer center={[DEFAULT_POS.lat, DEFAULT_POS.lng]} zoom={12} style={{ width: "100%", height: "100%" }}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' />
           {selPos && <FlyTo pos={selPos} />}
