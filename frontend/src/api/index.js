@@ -41,6 +41,7 @@ export const alertAPI = {
 // ── Violations ────────────────────────────────────────────────────────────────
 export const violationAPI = {
   history: (params) => api.get("/violations/history", { params }),
+  stats:   ()       => api.get("/violations/stats"),
 };
 
 // ── Health ────────────────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -149,14 +150,21 @@ func (h *Handler) GetViolationStats(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	stats := map[string]int{"entry": 0, "exit": 0}
+	stats := map[string]int{"entry": 0, "exit": 0, "speed": 0}
 	for rows.Next() {
 		var eventType string
 		var count int
 		if err := rows.Scan(&eventType, &count); err != nil {
 			continue
 		}
-		stats[eventType] = count
+		switch strings.ToLower(eventType) {
+		case "entry":
+			stats["entry"] += count
+		case "exit":
+			stats["exit"] += count
+		case "speed_violation":
+			stats["speed"] += count
+		}
 	}
 
 	h.respond(w, http.StatusOK, stats, start)

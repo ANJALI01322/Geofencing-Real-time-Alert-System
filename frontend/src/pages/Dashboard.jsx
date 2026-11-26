@@ -39,11 +39,13 @@ function StatCard({ icon: Icon, label, value, sub, accent, trend }) {
 }
 
 function Badge({type}){
-  const e=type==="entry";
+  const t=(type||"").toLowerCase();
+  const e=t==="entry";
+  const sp=t==="speed_violation";
   return <span style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 8px",borderRadius:20,
     fontSize:"0.65rem",fontWeight:700,letterSpacing:"0.06em",whiteSpace:"nowrap",
-    background:e?"#F0FDF4":"#FFF1F2",color:e?"#16A34A":"#DC2626",border:`1px solid ${e?"#BBF7D0":"#FECDD3"}`}}>
-    {e?<ArrowDownLeft size={9}/>:<ArrowUpRight size={9}/>}{e?"ENTRY":"EXIT"}
+    background:sp?"#FFF7ED":e?"#F0FDF4":"#FFF1F2",color:sp?"#C2410C":e?"#16A34A":"#DC2626",border:`1px solid ${sp?"#FDBA74":e?"#BBF7D0":"#FECDD3"}`}}>
+    {sp?null:e?<ArrowDownLeft size={9}/>:<ArrowUpRight size={9}/>}{sp?"SPEED":e?"ENTRY":"EXIT"}
   </span>;
 }
 
@@ -58,7 +60,7 @@ function ViolationRow({v}){
       {v.vehicle_number||v.vehicle_id||"Unknown"}
     </span>
     <span style={{color:"#6B7280",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-      {v.geofence_name||"\u2014"}
+      {v.geofence_name||v.zone_name||v.geofence?.geofence_name||v.geofence?.name||(v.event_type==="speed_violation"?"Speed limit exceeded":"\u2014")}
     </span>
     <div style={{textAlign:"right"}}>
       <div style={{color:"#374151",fontFamily:"JetBrains Mono,monospace",fontSize:"0.68rem"}}>
@@ -115,6 +117,7 @@ function Empty({icon:Icon,title,sub}){
 export default function Dashboard({alertHistory}){
   const [stats,setStats]=useState({vehicles:0,active:0,geofences:0,alerts:0});
   const [recentV,setRecentV]=useState([]);
+  const [evStats,setEvStats]=useState({entry:0,exit:0});
   const [loading,setLoading]=useState(true);
   const [lastRefresh,setLastRefresh]=useState(null);
   const [refreshing,setRefreshing]=useState(false);
@@ -125,7 +128,7 @@ export default function Dashboard({alertHistory}){
   const fetchData=useCallback(async(silent=false)=>{
     if(!silent)setLoading(true); else setRefreshing(true);
     try{
-      const[vRes,gRes,aRes]=await Promise.all([vehicleAPI.list(),geofenceAPI.list(),violationAPI.history({limit:20})]);
+      const[vRes,gRes,aRes,sRes]=await Promise.all([vehicleAPI.list(),geofenceAPI.list(),violationAPI.history({limit:20}),violationAPI.stats().catch(()=>null)]);
       const vehicles  =vRes.data?.data?.vehicles  ??(Array.isArray(vRes.data?.data)?vRes.data.data:Array.isArray(vRes.data)?vRes.data:[]);
       const geofences =gRes.data?.data?.geofences ??(Array.isArray(gRes.data?.data)?gRes.data.data:Array.isArray(gRes.data)?gRes.data:[]);
       const violations=aRes.data?.data?.violations??(Array.isArray(aRes.data?.data)?aRes.data.data:Array.isArray(aRes.data)?aRes.data:[]);
@@ -134,6 +137,13 @@ export default function Dashboard({alertHistory}){
       const active=vehicles.some(hasLoc)?vehicles.filter(hasLoc).length:vehicles.length;
       setStats({vehicles:vehicles.length,active,geofences:geofences.length,alerts:violations.length});
       setRecentV(violations);
+      const s=sRes?.data?.data??sRes?.data;
+      let entry=Number(s?.entry)||0, exit=Number(s?.exit)||0;
+      if(!sRes||(entry===0&&exit===0)){
+        entry=violations.filter(v=>v.event_type?.toLowerCase()==="entry").length;
+        exit=violations.filter(v=>v.event_type?.toLowerCase()==="exit").length;
+      }
+      setEvStats({entry,exit});
       setLastRefresh(new Date());
     }catch(e){console.error("Dashboard fetch",e);}
     finally{setLoading(false);setRefreshing(false);}
@@ -185,9 +195,9 @@ export default function Dashboard({alertHistory}){
       </div>
 
       <div style={{fontSize:"0.78rem",fontWeight:700,marginBottom:20}}>
-        <span style={{color:"#16A34A"}}>Entry: {recentV.filter(v=>v.event_type==="entry").length}</span>
+        <span style={{color:"#16A34A"}}>Entry: {evStats.entry}</span>
         <span style={{color:"#9CA3AF"}}> | </span>
-        <span style={{color:"#DC2626"}}>Exit: {recentV.filter(v=>v.event_type==="exit").length}</span>
+        <span style={{color:"#DC2626"}}>Exit: {evStats.exit}</span>
       </div>
 
       <div style={{display:"flex",alignItems:"center",padding:"10px 18px",borderRadius:10,background:"#FFFFFF",border:"1px solid #E5E7EB",marginBottom:20,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
